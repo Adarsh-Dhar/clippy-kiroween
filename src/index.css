@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    font-family: 'MS Sans Serif', system-ui, sans-serif;
+  }
+
+  body {
+    background-color: #008080;
+    color: #000000;
+  }
+}
+
+@layer components {
+  .win95-button {
+    @apply px-4 py-2 bg-win95-gray border-2 border-solid border-win95-lightgray cursor-pointer font-win95 text-sm font-bold select-none transition-shadow active:shadow-win95-in hover:shadow-win95-out;
+    border-left-color: #ffffff;
+    border-top-color: #ffffff;
+    border-right-color: #808080;
+    border-bottom-color: #000000;
+    box-shadow: 1px 1px 0 0 #dfdfdf, -1px -1px 0 0 #000000, inset 1px 1px 0 0 #ffffff, inset -1px -1px 0 0 #808080;
+  }
+
+  .win95-button:active {
+    border-left-color: #808080;
+    border-top-color: #808080;
+    border-right-color: #ffffff;
+    border-bottom-color: #ffffff;
+    box-shadow: inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #dfdfdf;
+  }
+
+  .win95-button:disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+
+  .win95-window {
+    @apply bg-win95-gray border-2 border-solid;
+    border-left-color: #ffffff;
+    border-top-color: #ffffff;
+    border-right-color: #808080;
+    border-bottom-color: #000000;
+    box-shadow: inset 1px 1px 0 0 #ffffff, inset -1px -1px 0 0 #808080;
+  }
+
+  .win95-titlebar {
+    @apply bg-gradient-to-r from-win95-blue to-blue-800 text-win95-white px-2 py-1 font-win95 text-sm font-bold flex items-center justify-between select-none;
+    background: linear-gradient(90deg, #000080 0%, #1084d7 100%);
+  }
+
+  .win95-menu {
+    @apply bg-win95-gray border-b-2 border-b-win95-darkgray px-1 py-1 text-sm font-win95;
+  }
+
+  .win95-menu-item {
+    @apply px-4 py-1 cursor-pointer hover:bg-win95-blue hover:text-win95-white inline-block;
+  }
+
+  .textfield-win95 {
+    @apply bg-win95-cream border-2 border-solid px-2 py-2 font-code text-sm;
+    border-left-color: #808080;
+    border-top-color: #808080;
+    border-right-color: #dfdfdf;
+    border-bottom-color: #dfdfdf;
+    box-shadow: inset 1px 1px 0 0 #808080, inset -1px -1px 0 0 #dfdfdf;
+  }
+
+  .glitch-text {
+    animation: glitch 0.4s infinite;
+  }
+}
+
+@keyframes chromatic {
+  0% {
+    text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff, 0 0 transparent;
+  }
+  50% {
+    text-shadow: -2px 0 #ff00ff, 2px 0 #00ffff, 0 0 transparent;
+  }
+  100% {
+    text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff, 0 0 transparent;
+  }
+}
