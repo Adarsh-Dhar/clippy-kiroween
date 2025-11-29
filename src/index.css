@@ -69,6 +69,11 @@
   .glitch-text {
     animation: glitch 0.4s infinite;
   }
+
+  /* Clippy container styles - don't interfere with Clippy.js positioning */
+  .clippy-container {
+    position: relative;
+  }
 }
 
 @keyframes chromatic {
@@ -81,4 +86,46 @@
   100% {
     text-shadow: 2px 0 #ff00ff, -2px 0 #00ffff, 0 0 transparent;
   }
+}
+
+/* Clippy.js visibility and positioning styles */
+/* Target all possible Clippy element variations */
+.clippy,
+#clippy,
+.clippy-balloon,
+.clippy-balloon-content,
+.clippy-balloon-tail,
+[class*="clippy"],
+[id*="clippy"] {
+  z-index: 9999 !important;
+  position: fixed !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure Clippy is positioned in bottom-right */
+.clippy,
+#clippy,
+[class*="clippy"][id*="clippy"] {
+  bottom: 0 !important;
+  right: 0 !important;
+}
+
+/* Make sure Clippy canvas/elements are visible */
+.clippy canvas,
+#clippy canvas,
+[class*="clippy"] canvas {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure parent containers don't clip Clippy */
+body,
+#root {
+  position: relative !important;
+}
+
+/* Ensure root container doesn't clip fixed positioned elements */
+#root {
+  overflow: visible !important;
 }

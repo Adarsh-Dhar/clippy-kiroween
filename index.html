@@ -8,15 +8,13 @@
     <meta property="og:image" content="https://bolt.new/static/og_default.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content="https://bolt.new/static/og_default.png">
-    <!-- Clippy.js CSS -->
-    <link rel="stylesheet" type="text/css" href="https://gitcdn.xyz/repo/pi0/clippyjs/master/assets/clippy.css" media="all">
+    <!-- Clippy.js CSS will be imported via main.tsx -->
   </head>
   <body>
     <div id="root"></div>
     <!-- jQuery (required by Clippy.js) -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
-    <!-- Clippy.js library -->
-    <script src="https://gitcdn.xyz/repo/pi0/clippyjs/master/build/clippy.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@1.12.4/dist/jquery.min.js" 
+            onload="console.log('✅ jQuery loaded:', typeof window.jQuery, typeof window.$)"></script>
     <!-- React app -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
