@@ -60,7 +60,7 @@ export const MainWindow = ({
           </button>
         </div>
       </div>
-      {anger > 0 && <ClippyAgent anger={anger} message={clippyMessage} />}
+      <ClippyAgent anger={anger} message={clippyMessage} />
     </div>
   );
 };
