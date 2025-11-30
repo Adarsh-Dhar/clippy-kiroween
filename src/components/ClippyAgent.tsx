@@ -2,22 +2,26 @@ import { useRef, useState, useEffect } from 'react';
 import { AnimationController } from './AnimationController';
 import { ValidationError } from '../utils/codeValidator';
 import { getClippyFeedback } from '../utils/geminiService';
+import { useFileSystem } from '../contexts/FileSystemContext';
 
 interface ClippyAgentProps {
   anger?: number;  // Keep for backward compatibility
   message?: string; // Keep for backward compatibility
-  code?: string; // Code snippet for Gemini feedback
   errors?: ValidationError[]; // Validation errors for Gemini feedback
   isLinting?: boolean; // Whether code is currently being linted
 }
 
-export const ClippyAgent = ({ anger, message, code, errors, isLinting }: ClippyAgentProps) => {
+export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentProps) => {
+  const { activeFile, getFileContent } = useFileSystem();
   const agentRef = useRef<ClippyAgent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
   const [geminiFeedback, setGeminiFeedback] = useState<string>('');
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
+  
+  // Get code from active file
+  const code = activeFile ? getFileContent(activeFile) || '' : '';
 
   useEffect(() => {
     console.log('ClippyAgent component mounted');

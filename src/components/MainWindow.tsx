@@ -4,31 +4,25 @@ import { MenuBar } from './MenuBar';
 import { EditorArea } from './EditorArea';
 import { ClippyAgent } from './ClippyAgent';
 import { LanguageSelector } from './LanguageSelector';
+import { FileTree } from './FileTree';
+import { FileTabs } from './FileTabs';
 import { ValidationError } from '../utils/codeValidator';
+import { useView } from '../contexts/ViewContext';
 
 interface MainWindowProps {
   anger: number;
-  code: string;
-  onCodeChange: (code: string) => void;
-  onCompile: () => void;
   clippyMessage: string;
-  buttonPosition?: { x: number; y: number };
-  onButtonMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onAngerChange?: (angerLevel: number) => void;
   onErrorCountChange?: (errorCount: number) => void;
 }
 
 export const MainWindow = ({
   anger,
-  code,
-  onCodeChange,
-  onCompile,
   clippyMessage,
-  buttonPosition,
-  onButtonMouseEnter,
   onAngerChange,
   onErrorCountChange,
 }: MainWindowProps) => {
+  const { fileTreeVisible } = useView();
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [isLinting, setIsLinting] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
@@ -41,7 +35,7 @@ export const MainWindow = ({
   }
 
   return (
-    <div className={`relative w-full max-w-3xl ${windowBgColor} border-2 border-solid`}
+    <div className={`relative w-full h-[90vh] max-w-7xl ${windowBgColor} border-2 border-solid flex flex-col`}
       style={{
         borderLeftColor: anger >= 2 ? '#999' : '#ffffff',
         borderTopColor: anger >= 2 ? '#999' : '#ffffff',
@@ -54,39 +48,36 @@ export const MainWindow = ({
         closeDisabled={true}
       />
       <MenuBar />
-      <div className={`p-4`}>
-        <div className="mb-2">
-          <LanguageSelector 
-            selectedLanguage={selectedLanguage}
-            onLanguageChange={setSelectedLanguage}
-          />
-        </div>
-        <EditorArea 
-          anger={anger} 
-          value={code} 
-          onChange={onCodeChange} 
-          onAngerChange={onAngerChange}
-          onErrorCountChange={onErrorCountChange}
-          onErrorsChange={setErrors}
-          onLintingChange={setIsLinting}
-          selectedLanguage={selectedLanguage}
-        />
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={onCompile}
-            onMouseEnter={onButtonMouseEnter}
-            style={
-              anger === 3 && buttonPosition
-                ? { position: 'absolute', left: `${buttonPosition.x}px`, top: `${buttonPosition.y}px` }
-                : {}
-            }
-            className="win95-button"
-          >
-            Check Syntax
-          </button>
+      <div className="flex flex-1 overflow-hidden">
+        {/* File Tree Sidebar */}
+        {fileTreeVisible && (
+          <div className="w-64 flex-shrink-0">
+            <FileTree />
+          </div>
+        )}
+        
+        {/* Editor Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="mb-2 p-2">
+            <LanguageSelector 
+              selectedLanguage={selectedLanguage}
+              onLanguageChange={setSelectedLanguage}
+            />
+          </div>
+          <FileTabs />
+          <div className="flex-1 overflow-hidden p-2">
+            <EditorArea 
+              anger={anger} 
+              onAngerChange={onAngerChange}
+              onErrorCountChange={onErrorCountChange}
+              onErrorsChange={setErrors}
+              onLintingChange={setIsLinting}
+              selectedLanguage={selectedLanguage}
+            />
+          </div>
         </div>
       </div>
-      <ClippyAgent anger={anger} message={clippyMessage} code={code} errors={errors} isLinting={isLinting} />
+      <ClippyAgent anger={anger} message={clippyMessage || ''} errors={errors} isLinting={isLinting} />
     </div>
   );
 };

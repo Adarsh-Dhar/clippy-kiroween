@@ -1,16 +1,38 @@
 import { useState, useRef } from 'react';
 import { MainWindow } from './components/MainWindow';
 import { GameProvider, useGame } from './contexts/GameContext';
+import { FileSystemProvider, useFileSystem } from './contexts/FileSystemContext';
+import { EditorProvider } from './contexts/EditorContext';
+import { ViewProvider } from './contexts/ViewContext';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
-function AppContent() {
-  const { setAngerLevel, setErrorCount } = useGame();
-  const [code, setCode] = useState(`function helloWorld() {
-  console.log("Hello, World!");
+function EditorWrapper() {
+  const { activeFile, getFileContent, updateFileContent } = useFileSystem();
+  
+  const getCurrentContent = () => {
+    if (!activeFile) return '';
+    return getFileContent(activeFile) || '';
+  };
+
+  const handleContentChange = (content: string) => {
+    if (activeFile) {
+      updateFileContent(activeFile, content);
+    }
+  };
+
+  return (
+    <EditorProvider
+      onContentChange={handleContentChange}
+      getCurrentContent={getCurrentContent}
+    >
+      <EditorContent />
+    </EditorProvider>
+  );
 }
 
-// Add your code here...`);
-  const [clippyMessage, setClippyMessage] = useState('');
-  const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
+function EditorContent() {
+  useKeyboardShortcuts();
+  const { setAngerLevel, setErrorCount } = useGame();
   const containerRef = useRef<HTMLDivElement>(null);
   const [angerLevel, setLocalAngerLevel] = useState(0);
 
@@ -21,48 +43,6 @@ function AppContent() {
 
   const handleErrorCountChange = (count: number) => {
     setErrorCount(count);
-  };
-
-  const CLIPPY_RESPONSES = {
-    0: [
-      'It looks like you\'re writing code! Would you like some help?',
-      'I\'m here to assist you.',
-      'Need a hand?',
-    ],
-    1: [
-      'Um... are you sure about that?',
-      'That doesn\'t look right...',
-      'You might want to reconsider.',
-    ],
-    2: [
-      'WHY ARE YOU DOING THIS?',
-      'STOP! This is wrong!',
-      'I\'m BEGGING you...',
-    ],
-    3: [
-      'YOU CANNOT LEAVE',
-      'I WILL FIND YOU',
-      'NOWHERE IS SAFE',
-    ],
-  };
-
-  const handleCompile = () => {
-    // Don't manually increment anger - let EditorArea's validation handle it
-    // The validation system will automatically:
-    // - Increase anger when errors are detected
-    // - Decrease anger back to 0 when code is fixed
-    // Just show a message based on current anger level (set by validation)
-    const messages = CLIPPY_RESPONSES[angerLevel as keyof typeof CLIPPY_RESPONSES];
-    setClippyMessage(messages[Math.floor(Math.random() * messages.length)]);
-  };
-
-  const handleButtonMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (angerLevel === 3) {
-      const button = e.currentTarget;
-      const randomX = Math.random() * (window.innerWidth - 100);
-      const randomY = Math.random() * (window.innerHeight - 50);
-      setButtonPosition({ x: randomX, y: randomY });
-    }
   };
 
   let bgColor = 'bg-win95-teal';
@@ -82,12 +62,7 @@ function AppContent() {
       >
         <MainWindow
           anger={angerLevel}
-          code={code}
-          onCodeChange={setCode}
-          onCompile={handleCompile}
-          clippyMessage={clippyMessage}
-          buttonPosition={buttonPosition}
-          onButtonMouseEnter={handleButtonMouseEnter}
+          clippyMessage=""
           onAngerChange={handleAngerChange}
           onErrorCountChange={handleErrorCountChange}
         />
@@ -99,7 +74,11 @@ function AppContent() {
 function App() {
   return (
     <GameProvider>
-      <AppContent />
+      <FileSystemProvider>
+        <ViewProvider>
+          <EditorWrapper />
+        </ViewProvider>
+      </FileSystemProvider>
     </GameProvider>
   );
 }
