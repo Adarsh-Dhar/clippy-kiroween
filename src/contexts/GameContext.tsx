@@ -29,12 +29,12 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const [angerLevel, setAngerLevel] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
 
-  // Automatically trigger crash when anger level reaches 5
+  // Cap anger level at 4 - let Clippy handle all error states
   useEffect(() => {
-    if (angerLevel >= 5 && gameState !== 'CRASHED') {
-      setGameState('CRASHED');
+    if (angerLevel > 4) {
+      setAngerLevel(4);
     }
-  }, [angerLevel, gameState]);
+  }, [angerLevel]);
 
   const triggerCrash = () => {
     setGameState('CRASHED');

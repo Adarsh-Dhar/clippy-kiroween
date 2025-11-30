@@ -17,3 +17,35 @@
    ```
 
 Note: The app will work without the API key, but Clippy will use fallback messages instead of AI-generated feedback.
+
+### Linting Server
+
+The app uses a backend server for real linting. To run it:
+
+1. Navigate to the server directory:
+   ```bash
+   cd server
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Install system linters (required):
+   - Python: `pip install pylint`
+   - Go: `go install golang.org/x/lint/golint@latest`
+   - JavaScript: `npm install -g eslint`
+
+4. Start the server:
+   ```bash
+   npm start
+   ```
+
+5. Configure frontend (optional):
+   Add to `.env`:
+   ```
+   VITE_LINT_API_URL=http://localhost:3001
+   ```
+
+The server runs on port 3001 by default.

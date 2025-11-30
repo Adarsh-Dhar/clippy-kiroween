@@ -1,0 +1,31 @@
+{
+  "env": {
+    "es2021": true,
+    "node": true,
+    "browser": true
+  },
+  "extends": ["eslint:recommended"],
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script",
+    "allowReserved": true
+  },
+  "rules": {
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "no-redeclare": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "error",
+    "no-extra-semi": "error",
+    "no-func-assign": "error",
+    "no-inner-declarations": "error",
+    "no-invalid-regexp": "error",
+    "no-irregular-whitespace": "error",
+    "no-obj-calls": "error",
+    "no-sparse-arrays": "error",
+    "no-unreachable": "error",
+    "use-isnan": "error",
+    "valid-typeof": "error"
+  }
+}
+

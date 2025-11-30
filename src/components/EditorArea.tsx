@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { validateCode, ValidationError } from '../utils/codeValidator';
+import { ValidationError } from '../utils/codeValidator';
+import { lintCode } from '../utils/lintingService';
+import { detectLanguage } from '../utils/languageDetector';
 
 interface EditorAreaProps {
   anger: number;
@@ -8,26 +10,56 @@ interface EditorAreaProps {
   onAngerChange?: (angerLevel: number) => void;
   onErrorCountChange?: (errorCount: number) => void;
   onErrorsChange?: (errors: ValidationError[]) => void;
+  onLintingChange?: (isLinting: boolean) => void;
+  selectedLanguage?: string | null;
 }
 
-export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCountChange, onErrorsChange }: EditorAreaProps) => {
+export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCountChange, onErrorsChange, onLintingChange, selectedLanguage }: EditorAreaProps) => {
   const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [isLinting, setIsLinting] = useState(false);
   const lines = value.split('\n');
   const maxLines = Math.max(lines.length, 10);
 
-  // Debounced validation logic
+  // Debounced validation logic using backend API
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      const validationErrors = validateCode(value);
-      setErrors(validationErrors);
-      // Expose errors to parent component
-      if (onErrorsChange) {
-        onErrorsChange(validationErrors);
+    const timeoutId = setTimeout(async () => {
+      setIsLinting(true);
+      if (onLintingChange) {
+        onLintingChange(true);
+      }
+
+      try {
+        // Use selected language if provided, otherwise auto-detect
+        const language = selectedLanguage || detectLanguage(value);
+        
+        // Call backend API to lint the code
+        const validationErrors = await lintCode(value, language);
+        
+        // Ensure we have a valid array
+        const errorsArray = Array.isArray(validationErrors) ? validationErrors : [];
+        
+        setErrors(errorsArray);
+        // Expose errors to parent component
+        if (onErrorsChange) {
+          onErrorsChange(errorsArray);
+        }
+      } catch (error) {
+        console.error('Error during linting:', error);
+        // Clear errors on any error
+        setErrors([]);
+        if (onErrorsChange) {
+          onErrorsChange([]);
+        }
+      } finally {
+        setIsLinting(false);
+        if (onLintingChange) {
+          onLintingChange(false);
+        }
       }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [value, onErrorsChange]);
+  }, [value, selectedLanguage, onErrorsChange, onLintingChange]);
 
   // Calculate anger level based on error count (0-5 scale)
   useEffect(() => {
@@ -50,10 +82,9 @@ export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCount
         angerLevel = 2;
       } else if (errorCount >= 5 && errorCount <= 7) {
         angerLevel = 3;
-      } else if (errorCount >= 8 && errorCount <= 10) {
-        angerLevel = 4;
       } else {
-        angerLevel = 5;
+        // Cap at level 4 - let Clippy handle all error states
+        angerLevel = 4;
       }
 
       onAngerChange(angerLevel);

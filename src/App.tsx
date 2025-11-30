@@ -1,11 +1,9 @@
 import { useState, useRef } from 'react';
 import { MainWindow } from './components/MainWindow';
 import { GameProvider, useGame } from './contexts/GameContext';
-import { BSOD } from './components/BSOD';
-import { ApologyModal } from './components/ApologyModal';
 
 function AppContent() {
-  const { gameState, setAngerLevel, setErrorCount, resetGame } = useGame();
+  const { setAngerLevel, setErrorCount } = useGame();
   const [code, setCode] = useState(`function helloWorld() {
   console.log("Hello, World!");
 }
@@ -23,16 +21,6 @@ function AppContent() {
 
   const handleErrorCountChange = (count: number) => {
     setErrorCount(count);
-  };
-
-  const handleApologyAccepted = () => {
-    console.log('Apology accepted - resetting game');
-    resetGame();
-  };
-
-  const handleApologyTimeout = () => {
-    console.log('Apology timeout - triggering crash');
-    setAngerLevel(5);
   };
 
   const CLIPPY_RESPONSES = {
@@ -87,14 +75,6 @@ function AppContent() {
 
   return (
     <>
-      {gameState === 'CRASHED' && <BSOD />}
-      {angerLevel === 4 && (
-        <ApologyModal
-          isOpen={true}
-          onApologyAccepted={handleApologyAccepted}
-          onTimeout={handleApologyTimeout}
-        />
-      )}
       <div
         ref={containerRef}
         className={`min-h-screen w-full ${bgColor} flex items-center justify-center p-4 transition-colors duration-500 font-win95`}

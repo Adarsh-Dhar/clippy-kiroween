@@ -1,13 +1,9 @@
-import { useGame } from '../contexts/GameContext';
-
 export const MenuBar = () => {
   const menuItems = ['File', 'Edit', 'View', 'Insert', 'Help'];
-  const { errorCount, triggerCrash } = useGame();
 
   const handleSubmit = () => {
-    if (errorCount > 0) {
-      triggerCrash();
-    }
+    // Submit functionality - errors are handled by Clippy
+    console.log('Code submitted');
   };
 
   return (

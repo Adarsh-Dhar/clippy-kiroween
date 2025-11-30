@@ -8,9 +8,10 @@ interface ClippyAgentProps {
   message?: string; // Keep for backward compatibility
   code?: string; // Code snippet for Gemini feedback
   errors?: ValidationError[]; // Validation errors for Gemini feedback
+  isLinting?: boolean; // Whether code is currently being linted
 }
 
-export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) => {
+export const ClippyAgent = ({ anger, message, code, errors, isLinting }: ClippyAgentProps) => {
   const agentRef = useRef<ClippyAgent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -211,7 +212,7 @@ export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) 
     };
   }, []);
 
-  // Anger-based animation logic (0-4 range, 5 triggers BSOD)
+  // Anger-based animation logic (0-4 range, all handled by Clippy)
   useEffect(() => {
     if (!isLoaded || !agentRef.current || anger === undefined) {
       return;
@@ -222,11 +223,12 @@ export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) 
       1: 'LookDown',     // Slightly annoyed - looking down at code
       2: 'GetAttention', // Frustrated - trying to get attention
       3: 'Wave',         // Very angry - waving frantically
-      4: 'Alert'         // Critical - alert animation
-      // Level 5 triggers BSOD via GameContext, no animation needed
+      4: 'Alert'         // Critical - alert animation (max level)
     };
 
-    const animationName = angerAnimations[anger] || 'Idle1_1';
+    // Cap anger at 4, use Alert animation for any level >= 4
+    const cappedAnger = Math.min(anger, 4);
+    const animationName = angerAnimations[cappedAnger] || 'Idle1_1';
     
     try {
       agentRef.current.play(animationName);
@@ -293,11 +295,15 @@ export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) 
 
   // Determine what message to display
   const displayMessage = geminiFeedback || message || 'hello world';
+  const isLoading = isLinting || isLoadingFeedback;
+
+  // Show speech bubble when linting or when explicitly shown
+  const shouldShowBubble = showSpeechBubble || isLinting;
 
   return (
     <div ref={containerRef} className="clippy-container">
       {/* Speech bubble to the left of Clippy */}
-      {showSpeechBubble && (
+      {shouldShowBubble && (
         <div 
           className="fixed bottom-20 right-64 z-[10001] animate-fade-in"
           style={{
@@ -305,7 +311,7 @@ export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) 
           }}
         >
           <div className="bg-yellow-300 text-black px-4 py-2 rounded-lg border-2 border-black font-win95 text-sm shadow-lg relative max-w-xs">
-            {isLoadingFeedback ? 'Thinking...' : displayMessage}
+            {isLoading ? 'Thinking...' : displayMessage}
             {/* Speech bubble tail pointing right towards Clippy */}
             <div 
               className="absolute bottom-2 right-0 transform translate-x-full w-0 h-0 border-t-8 border-b-8 border-l-8 border-t-transparent border-b-transparent border-l-yellow-300"

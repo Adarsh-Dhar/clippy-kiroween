@@ -3,6 +3,7 @@ import { TitleBar } from './TitleBar';
 import { MenuBar } from './MenuBar';
 import { EditorArea } from './EditorArea';
 import { ClippyAgent } from './ClippyAgent';
+import { LanguageSelector } from './LanguageSelector';
 import { ValidationError } from '../utils/codeValidator';
 
 interface MainWindowProps {
@@ -29,6 +30,8 @@ export const MainWindow = ({
   onErrorCountChange,
 }: MainWindowProps) => {
   const [errors, setErrors] = useState<ValidationError[]>([]);
+  const [isLinting, setIsLinting] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
 
   let windowBgColor = 'bg-win95-gray';
   let windowBorderColor = 'border-win95-gray';
@@ -51,7 +54,13 @@ export const MainWindow = ({
         closeDisabled={true}
       />
       <MenuBar />
-      <div className={`p-4 ${anger === 1 ? 'animate-shake' : ''}`}>
+      <div className={`p-4`}>
+        <div className="mb-2">
+          <LanguageSelector 
+            selectedLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+          />
+        </div>
         <EditorArea 
           anger={anger} 
           value={code} 
@@ -59,6 +68,8 @@ export const MainWindow = ({
           onAngerChange={onAngerChange}
           onErrorCountChange={onErrorCountChange}
           onErrorsChange={setErrors}
+          onLintingChange={setIsLinting}
+          selectedLanguage={selectedLanguage}
         />
         <div className="mt-4 flex gap-2">
           <button
@@ -75,7 +86,7 @@ export const MainWindow = ({
           </button>
         </div>
       </div>
-      <ClippyAgent anger={anger} message={clippyMessage} code={code} errors={errors} />
+      <ClippyAgent anger={anger} message={clippyMessage} code={code} errors={errors} isLinting={isLinting} />
     </div>
   );
 };
