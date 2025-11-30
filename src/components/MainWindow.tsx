@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { TitleBar } from './TitleBar';
 import { MenuBar } from './MenuBar';
 import { EditorArea } from './EditorArea';
 import { ClippyAgent } from './ClippyAgent';
+import { ValidationError } from '../utils/codeValidator';
 
 interface MainWindowProps {
   anger: number;
@@ -26,6 +28,8 @@ export const MainWindow = ({
   onAngerChange,
   onErrorCountChange,
 }: MainWindowProps) => {
+  const [errors, setErrors] = useState<ValidationError[]>([]);
+
   let windowBgColor = 'bg-win95-gray';
   let windowBorderColor = 'border-win95-gray';
 
@@ -54,6 +58,7 @@ export const MainWindow = ({
           onChange={onCodeChange} 
           onAngerChange={onAngerChange}
           onErrorCountChange={onErrorCountChange}
+          onErrorsChange={setErrors}
         />
         <div className="mt-4 flex gap-2">
           <button
@@ -70,7 +75,7 @@ export const MainWindow = ({
           </button>
         </div>
       </div>
-      <ClippyAgent anger={anger} message={clippyMessage} />
+      <ClippyAgent anger={anger} message={clippyMessage} code={code} errors={errors} />
     </div>
   );
 };

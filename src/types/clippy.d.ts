@@ -13,8 +13,11 @@ interface ClippyAgent {
 
 interface ClippyStatic {
   load(name: string, callback: (agent: ClippyAgent) => void): void;
+  agents?: string[];
 }
 
 interface Window {
   clippy: ClippyStatic;
+  jQuery?: unknown;
+  $?: unknown;
 }

@@ -1,21 +1,27 @@
 import { useRef, useState, useEffect } from 'react';
 import { AnimationController } from './AnimationController';
+import { ValidationError } from '../utils/codeValidator';
+import { getClippyFeedback } from '../utils/geminiService';
 
 interface ClippyAgentProps {
   anger?: number;  // Keep for backward compatibility
   message?: string; // Keep for backward compatibility
+  code?: string; // Code snippet for Gemini feedback
+  errors?: ValidationError[]; // Validation errors for Gemini feedback
 }
 
-export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
+export const ClippyAgent = ({ anger, message, code, errors }: ClippyAgentProps) => {
   const agentRef = useRef<ClippyAgent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+  const [geminiFeedback, setGeminiFeedback] = useState<string>('');
+  const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
 
   useEffect(() => {
     console.log('ClippyAgent component mounted');
     console.log('window.clippy available?', typeof window.clippy !== 'undefined');
-    console.log('window.jQuery available?', typeof (window as any).jQuery !== 'undefined');
+    console.log('window.jQuery available?', typeof window.jQuery !== 'undefined');
     
     let loadTimeout: ReturnType<typeof setTimeout>;
     let checkInterval: ReturnType<typeof setInterval>;
@@ -23,7 +29,7 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
 
     // Function to check if dependencies are ready
     const areDependenciesReady = (): boolean => {
-      const hasJQuery = typeof (window as any).jQuery !== 'undefined' || typeof (window as any).$ !== 'undefined';
+      const hasJQuery = typeof window.jQuery !== 'undefined' || typeof window.$ !== 'undefined';
       const hasClippy = typeof window.clippy !== 'undefined';
       return hasJQuery && hasClippy;
     };
@@ -32,7 +38,7 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
     const initClippy = () => {
       if (!areDependenciesReady()) {
         console.error('❌ Dependencies not ready:', {
-          jQuery: typeof (window as any).jQuery !== 'undefined' || typeof (window as any).$ !== 'undefined',
+          jQuery: typeof window.jQuery !== 'undefined' || typeof window.$ !== 'undefined',
           clippy: typeof window.clippy !== 'undefined'
         });
         return;
@@ -52,7 +58,7 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
       try {
         console.log('📞 Calling window.clippy.load("Clippy", callback)...');
         console.log('window.clippy object:', window.clippy);
-        console.log('Available agents:', (window.clippy as any).agents || 'unknown');
+        console.log('Available agents:', window.clippy.agents || 'unknown');
         
         window.clippy.load('Clippy', (agent: ClippyAgent) => {
           console.log('✅ Clippy agent loaded successfully!', agent);
@@ -81,7 +87,7 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
               '.clippy-balloon-tail'
             ];
             
-            let foundElements: HTMLElement[] = [];
+            const foundElements: HTMLElement[] = [];
             
             selectors.forEach(selector => {
               const elements = document.querySelectorAll(selector);
@@ -150,8 +156,8 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
       console.log('Waiting for dependencies to load...');
       console.log('Current state:', {
         clippy: typeof window.clippy,
-        jQuery: typeof (window as any).jQuery,
-        $: typeof (window as any).$,
+        jQuery: typeof window.jQuery,
+        $: typeof window.$,
         scripts: Array.from(document.querySelectorAll('script')).map(s => s.src)
       });
       
@@ -170,15 +176,15 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
           // Log progress every 2 seconds
           console.log(`Still waiting... (${attempts}/${maxAttempts})`, {
             clippy: typeof window.clippy,
-            jQuery: typeof (window as any).jQuery
+            jQuery: typeof window.jQuery
           });
         } else if (attempts >= maxAttempts) {
           clearInterval(checkInterval);
           console.error('❌ Dependencies failed to load after 20 seconds');
           console.log('Debug info:', {
             clippy: typeof window.clippy,
-            jQuery: typeof (window as any).jQuery,
-            $: typeof (window as any).$,
+            jQuery: typeof window.jQuery,
+            $: typeof window.$,
             allScripts: Array.from(document.querySelectorAll('script')).map(s => ({
               src: s.src,
               async: s.async,
@@ -243,6 +249,39 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
     }
   };
 
+  // Fetch Gemini feedback when errors change (debounced)
+  useEffect(() => {
+    if (!code || !errors || errors.length === 0) {
+      setGeminiFeedback('');
+      return;
+    }
+
+    setIsLoadingFeedback(true);
+    
+    // Debounce API calls to avoid excessive requests
+    const timeoutId = setTimeout(async () => {
+      try {
+        const feedback = await getClippyFeedback(code, errors);
+        setGeminiFeedback(feedback);
+        // Automatically show speech bubble when feedback is received
+        setShowSpeechBubble(true);
+        // Hide it after 5 seconds (longer for Gemini responses)
+        setTimeout(() => {
+          setShowSpeechBubble(false);
+        }, 5000);
+      } catch (error) {
+        console.error('Error fetching Gemini feedback:', error);
+        setGeminiFeedback('');
+      } finally {
+        setIsLoadingFeedback(false);
+      }
+    }, 2000); // 2 second debounce
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [code, errors]);
+
   const handleWriteClick = () => {
     // Show speech bubble
     setShowSpeechBubble(true);
@@ -251,6 +290,9 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
       setShowSpeechBubble(false);
     }, 3000);
   };
+
+  // Determine what message to display
+  const displayMessage = geminiFeedback || message || 'hello world';
 
   return (
     <div ref={containerRef} className="clippy-container">
@@ -262,8 +304,8 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
             pointerEvents: 'none'
           }}
         >
-          <div className="bg-yellow-300 text-black px-4 py-2 rounded-lg border-2 border-black font-win95 text-sm shadow-lg relative">
-            hello world
+          <div className="bg-yellow-300 text-black px-4 py-2 rounded-lg border-2 border-black font-win95 text-sm shadow-lg relative max-w-xs">
+            {isLoadingFeedback ? 'Thinking...' : displayMessage}
             {/* Speech bubble tail pointing right towards Clippy */}
             <div 
               className="absolute bottom-2 right-0 transform translate-x-full w-0 h-0 border-t-8 border-b-8 border-l-8 border-t-transparent border-b-transparent border-l-yellow-300"

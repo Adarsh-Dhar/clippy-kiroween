@@ -7,9 +7,10 @@ interface EditorAreaProps {
   onChange: (value: string) => void;
   onAngerChange?: (angerLevel: number) => void;
   onErrorCountChange?: (errorCount: number) => void;
+  onErrorsChange?: (errors: ValidationError[]) => void;
 }
 
-export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCountChange }: EditorAreaProps) => {
+export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCountChange, onErrorsChange }: EditorAreaProps) => {
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const lines = value.split('\n');
   const maxLines = Math.max(lines.length, 10);
@@ -19,10 +20,14 @@ export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCount
     const timeoutId = setTimeout(() => {
       const validationErrors = validateCode(value);
       setErrors(validationErrors);
+      // Expose errors to parent component
+      if (onErrorsChange) {
+        onErrorsChange(validationErrors);
+      }
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [value]);
+  }, [value, onErrorsChange]);
 
   // Calculate anger level based on error count (0-5 scale)
   useEffect(() => {
