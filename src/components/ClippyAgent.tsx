@@ -10,6 +10,7 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
   const agentRef = useRef<ClippyAgent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
 
   useEffect(() => {
     console.log('ClippyAgent component mounted');
@@ -204,6 +205,31 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
     };
   }, []);
 
+  // Anger-based animation logic (0-4 range, 5 triggers BSOD)
+  useEffect(() => {
+    if (!isLoaded || !agentRef.current || anger === undefined) {
+      return;
+    }
+
+    const angerAnimations: { [key: number]: string } = {
+      0: 'Idle1_1',      // Calm - idle animation
+      1: 'LookDown',     // Slightly annoyed - looking down at code
+      2: 'GetAttention', // Frustrated - trying to get attention
+      3: 'Wave',         // Very angry - waving frantically
+      4: 'Alert'         // Critical - alert animation
+      // Level 5 triggers BSOD via GameContext, no animation needed
+    };
+
+    const animationName = angerAnimations[anger] || 'Idle1_1';
+    
+    try {
+      agentRef.current.play(animationName);
+      console.log(`Playing anger animation: ${animationName} (anger level: ${anger})`);
+    } catch (error) {
+      console.error(`Failed to play anger animation: ${animationName}`, error);
+    }
+  }, [anger, isLoaded]);
+
   const playAnimation = (animationName: string) => {
     if (!agentRef.current) {
       console.warn('Clippy agent not ready');
@@ -217,9 +243,38 @@ export const ClippyAgent = ({ anger, message }: ClippyAgentProps) => {
     }
   };
 
+  const handleWriteClick = () => {
+    // Show speech bubble
+    setShowSpeechBubble(true);
+    // Hide it after 3 seconds
+    setTimeout(() => {
+      setShowSpeechBubble(false);
+    }, 3000);
+  };
+
   return (
     <div ref={containerRef} className="clippy-container">
-      <AnimationController onAnimationTrigger={playAnimation} />
+      {/* Speech bubble to the left of Clippy */}
+      {showSpeechBubble && (
+        <div 
+          className="fixed bottom-20 right-64 z-[10001] animate-fade-in"
+          style={{
+            pointerEvents: 'none'
+          }}
+        >
+          <div className="bg-yellow-300 text-black px-4 py-2 rounded-lg border-2 border-black font-win95 text-sm shadow-lg relative">
+            hello world
+            {/* Speech bubble tail pointing right towards Clippy */}
+            <div 
+              className="absolute bottom-2 right-0 transform translate-x-full w-0 h-0 border-t-8 border-b-8 border-l-8 border-t-transparent border-b-transparent border-l-yellow-300"
+              style={{
+                filter: 'drop-shadow(2px 2px 0px rgba(0,0,0,0.3))'
+              }}
+            />
+          </div>
+        </div>
+      )}
+      <AnimationController onAnimationTrigger={playAnimation} onWriteClick={handleWriteClick} />
     </div>
   );
 };

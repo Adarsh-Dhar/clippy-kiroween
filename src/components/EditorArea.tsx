@@ -1,14 +1,59 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { validateCode, ValidationError } from '../utils/codeValidator';
 
 interface EditorAreaProps {
   anger: number;
   value: string;
   onChange: (value: string) => void;
+  onAngerChange?: (angerLevel: number) => void;
+  onErrorCountChange?: (errorCount: number) => void;
 }
 
-export const EditorArea = ({ anger, value, onChange }: EditorAreaProps) => {
+export const EditorArea = ({ anger, value, onChange, onAngerChange, onErrorCountChange }: EditorAreaProps) => {
+  const [errors, setErrors] = useState<ValidationError[]>([]);
   const lines = value.split('\n');
   const maxLines = Math.max(lines.length, 10);
+
+  // Debounced validation logic
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      const validationErrors = validateCode(value);
+      setErrors(validationErrors);
+    }, 1000);
+
+    return () => clearTimeout(timeoutId);
+  }, [value]);
+
+  // Calculate anger level based on error count (0-5 scale)
+  useEffect(() => {
+    const errorCount = errors.length;
+    
+    // Update error count if callback provided
+    if (onErrorCountChange) {
+      onErrorCountChange(errorCount);
+    }
+
+    // Calculate anger level
+    if (onAngerChange) {
+      let angerLevel = 0;
+
+      if (errorCount === 0) {
+        angerLevel = 0;
+      } else if (errorCount >= 1 && errorCount <= 2) {
+        angerLevel = 1;
+      } else if (errorCount >= 3 && errorCount <= 4) {
+        angerLevel = 2;
+      } else if (errorCount >= 5 && errorCount <= 7) {
+        angerLevel = 3;
+      } else if (errorCount >= 8 && errorCount <= 10) {
+        angerLevel = 4;
+      } else {
+        angerLevel = 5;
+      }
+
+      onAngerChange(angerLevel);
+    }
+  }, [errors, onAngerChange, onErrorCountChange]);
 
   let bgClass = 'bg-win95-cream';
   let textClass = 'text-black';

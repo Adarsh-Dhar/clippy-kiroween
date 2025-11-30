@@ -3,6 +3,10 @@ import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+// Note: If you see "Cannot redefine property: ethereum" errors in the console,
+// these are from browser extensions (like MetaMask) and won't affect this app.
+// They can be safely ignored.
+
 // Create root and render React first - do this immediately without any DOM manipulation
 const rootElement = document.getElementById('root');
 if (!rootElement) {

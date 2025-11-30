@@ -1,8 +1,11 @@
 import { useState, useRef } from 'react';
 import { MainWindow } from './components/MainWindow';
+import { GameProvider, useGame } from './contexts/GameContext';
+import { BSOD } from './components/BSOD';
+import { ApologyModal } from './components/ApologyModal';
 
-function App() {
-  const [angerLevel, setAngerLevel] = useState(0);
+function AppContent() {
+  const { gameState, setAngerLevel, setErrorCount, resetGame } = useGame();
   const [code, setCode] = useState(`function helloWorld() {
   console.log("Hello, World!");
 }
@@ -11,6 +14,26 @@ function App() {
   const [clippyMessage, setClippyMessage] = useState('');
   const [buttonPosition, setButtonPosition] = useState({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const [angerLevel, setLocalAngerLevel] = useState(0);
+
+  const handleAngerChange = (level: number) => {
+    setLocalAngerLevel(level);
+    setAngerLevel(level);
+  };
+
+  const handleErrorCountChange = (count: number) => {
+    setErrorCount(count);
+  };
+
+  const handleApologyAccepted = () => {
+    console.log('Apology accepted - resetting game');
+    resetGame();
+  };
+
+  const handleApologyTimeout = () => {
+    console.log('Apology timeout - triggering crash');
+    setAngerLevel(5);
+  };
 
   const CLIPPY_RESPONSES = {
     0: [
@@ -36,9 +59,12 @@ function App() {
   };
 
   const handleCompile = () => {
-    const newLevel = Math.min(angerLevel + 1, 3);
-    setAngerLevel(newLevel);
-    const messages = CLIPPY_RESPONSES[newLevel as keyof typeof CLIPPY_RESPONSES];
+    // Don't manually increment anger - let EditorArea's validation handle it
+    // The validation system will automatically:
+    // - Increase anger when errors are detected
+    // - Decrease anger back to 0 when code is fixed
+    // Just show a message based on current anger level (set by validation)
+    const messages = CLIPPY_RESPONSES[angerLevel as keyof typeof CLIPPY_RESPONSES];
     setClippyMessage(messages[Math.floor(Math.random() * messages.length)]);
   };
 
@@ -60,21 +86,41 @@ function App() {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className={`min-h-screen w-full ${bgColor} flex items-center justify-center p-4 transition-colors duration-500 font-win95`}
-      style={{ backgroundColor: bgHex }}
-    >
-      <MainWindow
-        anger={angerLevel}
-        code={code}
-        onCodeChange={setCode}
-        onCompile={handleCompile}
-        clippyMessage={clippyMessage}
-        buttonPosition={buttonPosition}
-        onButtonMouseEnter={handleButtonMouseEnter}
-      />
-    </div>
+    <>
+      {gameState === 'CRASHED' && <BSOD />}
+      {angerLevel === 4 && (
+        <ApologyModal
+          isOpen={true}
+          onApologyAccepted={handleApologyAccepted}
+          onTimeout={handleApologyTimeout}
+        />
+      )}
+      <div
+        ref={containerRef}
+        className={`min-h-screen w-full ${bgColor} flex items-center justify-center p-4 transition-colors duration-500 font-win95`}
+        style={{ backgroundColor: bgHex }}
+      >
+        <MainWindow
+          anger={angerLevel}
+          code={code}
+          onCodeChange={setCode}
+          onCompile={handleCompile}
+          clippyMessage={clippyMessage}
+          buttonPosition={buttonPosition}
+          onButtonMouseEnter={handleButtonMouseEnter}
+          onAngerChange={handleAngerChange}
+          onErrorCountChange={handleErrorCountChange}
+        />
+      </div>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <GameProvider>
+      <AppContent />
+    </GameProvider>
   );
 }
 

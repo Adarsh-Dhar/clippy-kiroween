@@ -26,6 +26,7 @@ export default {
       animation: {
         'shake': 'shake 0.2s infinite',
         'glitch': 'glitch 0.4s infinite',
+        'fade-in': 'fadeIn 0.3s ease-in',
       },
       keyframes: {
         shake: {
@@ -44,6 +45,10 @@ export default {
           '0%': { textShadow: '2px 0 #ff00ff, -2px 0 #00ffff' },
           '50%': { textShadow: '-2px 0 #ff00ff, 2px 0 #00ffff' },
           '100%': { textShadow: '2px 0 #ff00ff, -2px 0 #00ffff' },
+        },
+        fadeIn: {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
         },
       },
     },

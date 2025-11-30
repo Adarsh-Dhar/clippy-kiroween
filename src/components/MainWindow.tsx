@@ -11,6 +11,8 @@ interface MainWindowProps {
   clippyMessage: string;
   buttonPosition?: { x: number; y: number };
   onButtonMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onAngerChange?: (angerLevel: number) => void;
+  onErrorCountChange?: (errorCount: number) => void;
 }
 
 export const MainWindow = ({
@@ -21,6 +23,8 @@ export const MainWindow = ({
   clippyMessage,
   buttonPosition,
   onButtonMouseEnter,
+  onAngerChange,
+  onErrorCountChange,
 }: MainWindowProps) => {
   let windowBgColor = 'bg-win95-gray';
   let windowBorderColor = 'border-win95-gray';
@@ -44,7 +48,13 @@ export const MainWindow = ({
       />
       <MenuBar />
       <div className={`p-4 ${anger === 1 ? 'animate-shake' : ''}`}>
-        <EditorArea anger={anger} value={code} onChange={onCodeChange} />
+        <EditorArea 
+          anger={anger} 
+          value={code} 
+          onChange={onCodeChange} 
+          onAngerChange={onAngerChange}
+          onErrorCountChange={onErrorCountChange}
+        />
         <div className="mt-4 flex gap-2">
           <button
             onClick={onCompile}
