@@ -1,7 +1,10 @@
-const { createTempFile, deleteTempFile } = require('../utils/fileManager');
+const { createTempFile, deleteTempFile, extractJavaClassName } = require('../utils/fileManager');
 const { executeLinter } = require('../utils/cliExecutor');
 const { parsePylintOutput } = require('../parsers/pylintParser');
 const { parseEslintOutput } = require('../parsers/eslintParser');
+const { parseGccOutput } = require('../parsers/gccParser');
+const { parseGppOutput } = require('../parsers/gppParser');
+const { parseJavacOutput } = require('../parsers/javacParser');
 const path = require('path');
 
 // Configuration for each supported language
@@ -30,13 +33,32 @@ const LINTER_CONFIG = {
     env: {
       ESLINT_USE_FLAT_CONFIG: 'false'  // Force legacy config format
     }
+  },
+  c: {
+    extension: '.c',
+    command: 'gcc',
+    args: ['-fsyntax-only'],
+    parser: parseGccOutput
+  },
+  cpp: {
+    extension: '.cpp',
+    command: 'g++',
+    args: ['-fsyntax-only'],
+    parser: parseGppOutput
+  },
+  java: {
+    extension: '.java',
+    command: 'javac',
+    args: ['-Xlint:all'],
+    parser: parseJavacOutput,
+    requiresClassNameExtraction: true
   }
 };
 
 /**
  * Lint code in the specified language
  * @param {string} code - The code to lint
- * @param {string} language - The programming language (python, javascript)
+ * @param {string} language - The programming language (python, javascript, c, cpp, java)
  * @returns {Promise<Array<{line: number, message: string}>>}
  */
 async function lintCode(code, language) {
@@ -54,8 +76,14 @@ async function lintCode(code, language) {
   let filepath = null;
 
   try {
+    // For Java, extract class name and use it as filename
+    let customName = null;
+    if (config.requiresClassNameExtraction) {
+      customName = extractJavaClassName(code);
+    }
+    
     // Create temporary file
-    filepath = await createTempFile(code, config.extension);
+    filepath = await createTempFile(code, config.extension, customName);
 
     // Execute linter
     const { stdout, stderr, exitCode } = await executeLinter(

@@ -1,7 +1,7 @@
 /**
  * Detect programming language from code patterns
  * @param code - The code to analyze
- * @returns The detected language: 'python' or 'javascript' (default)
+ * @returns The detected language: 'python', 'javascript', 'c', 'cpp', or 'java' (default: 'javascript')
  */
 export function detectLanguage(code: string): string {
   if (!code || code.trim().length === 0) {
@@ -52,6 +52,57 @@ export function detectLanguage(code: string): string {
   ];
 
 
+  // C detection patterns
+  const cPatterns = [
+    /^#include\s+<[^>]+>/,         // #include <header.h>
+    /^#include\s+"[^"]+"/,        // #include "header.h"
+    /^#define\s+\w+/,              // #define MACRO
+    /^int\s+main\s*\(/,           // int main(
+    /^void\s+main\s*\(/,          // void main(
+    /^printf\s*\(/,               // printf(
+    /^scanf\s*\(/,                // scanf(
+    /^\s*\/\/.*c\b/i,             // C comment indicator
+    /^\s*\/\*.*c\b/i,             // C block comment
+    /\b->\s*\w+/,                 // Pointer member access
+    /\bstruct\s+\w+\s*{/,         // struct definition
+  ];
+
+  // C++ detection patterns
+  const cppPatterns = [
+    /^#include\s+<iostream>/,     // #include <iostream>
+    /^#include\s+<vector>/,       // #include <vector>
+    /^#include\s+<string>/,       // #include <string>
+    /^using\s+namespace\s+std/,   // using namespace std
+    /^std::/,                     // std:: prefix
+    /^int\s+main\s*\(/,           // int main(
+    /^cout\s*</,                  // cout <<
+    /^cin\s*>>/,                  // cin >>
+    /^\s*\/\/.*c\+\+/i,           // C++ comment indicator
+    /^\s*\/\*.*c\+\+/i,           // C++ block comment
+    /\bclass\s+\w+\s*{/,          // class definition
+    /\bnew\s+\w+/,                // new keyword
+    /\bdelete\s+\w+/,             // delete keyword
+    /\bstd::/,                    // std:: namespace
+  ];
+
+  // Java detection patterns
+  const javaPatterns = [
+    /^package\s+\w+/,             // package declaration
+    /^import\s+java\./,            // import java.*
+    /^public\s+class\s+\w+/,      // public class
+    /^private\s+class\s+\w+/,     // private class
+    /^public\s+static\s+void\s+main/, // public static void main
+    /^System\.out\.println/,      // System.out.println
+    /^System\.in/,                // System.in
+    /\bString\s+\w+\s*=/,         // String variable
+    /\bint\s+\w+\s*=/,            // int variable
+    /\bpublic\s+\w+\s+class/,     // public class
+    /\bprivate\s+\w+\s+class/,     // private class
+    /\bprotected\s+\w+\s+class/,   // protected class
+    /\b@Override/,                // @Override annotation
+    /\b@Deprecated/,               // @Deprecated annotation
+  ];
+
   // JavaScript detection patterns (more specific to avoid false positives)
   const javascriptPatterns = [
     /^function\s+\w+\s*\(/,       // function name(
@@ -88,6 +139,48 @@ export function detectLanguage(code: string): string {
   // If we found multiple Python patterns, it's definitely Python
   if (pythonScore >= 2) {
     return 'python';
+  }
+
+  // Check for C++ patterns (check before C to avoid false positives)
+  let cppScore = 0;
+  for (const pattern of cppPatterns) {
+    if (pattern.test(firstLines) || pattern.test(allLines)) {
+      cppScore++;
+      if (pattern.source.includes('iostream') || pattern.source.includes('std::') || pattern.source.includes('using namespace')) {
+        return 'cpp';
+      }
+    }
+  }
+  if (cppScore >= 2) {
+    return 'cpp';
+  }
+
+  // Check for C patterns
+  let cScore = 0;
+  for (const pattern of cPatterns) {
+    if (pattern.test(firstLines) || pattern.test(allLines)) {
+      cScore++;
+      if (pattern.source.includes('#include') && !pattern.source.includes('iostream')) {
+        return 'c';
+      }
+    }
+  }
+  if (cScore >= 2) {
+    return 'c';
+  }
+
+  // Check for Java patterns
+  let javaScore = 0;
+  for (const pattern of javaPatterns) {
+    if (pattern.test(firstLines) || pattern.test(allLines)) {
+      javaScore++;
+      if (pattern.source.includes('public class') || pattern.source.includes('public static void main') || pattern.source.includes('package')) {
+        return 'java';
+      }
+    }
+  }
+  if (javaScore >= 2) {
+    return 'java';
   }
 
   // Check for JavaScript patterns (less specific, but still useful)

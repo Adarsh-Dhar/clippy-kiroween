@@ -132,3 +132,100 @@
   - Document required linter installations (pylint, golint, eslint)
   - Document API endpoint usage with examples
   - _Requirements: 1.4_
+
+
+- [ ] 10. Implement C language support with gcc
+  - [ ] 10.1 Create gccParser.js for C compiler output
+    - Write `parseGccOutput(stdout, stderr)` function
+    - Attempt to parse JSON output format first (if -fdiagnostics-format=json is supported)
+    - Implement fallback text parsing using regex pattern `filename:line:col: (error|warning): message`
+    - Extract line numbers and messages from stderr
+    - Return standardized array of { line, message } objects
+    - _Requirements: 2.4, 7.1, 7.2, 7.3, 7.4_
+  
+  - [ ] 10.2 Add C language configuration to lintingService
+    - Add 'c' entry to LINTER_CONFIG with extension '.c', command 'gcc', and args ['-fsyntax-only', '-fdiagnostics-format=json']
+    - Wire up gccParser to the C language configuration
+    - _Requirements: 2.4, 2.8_
+  
+  - [ ] 10.3 Test C linting with sample code
+    - Create test cases with C code containing syntax errors
+    - Verify gcc execution and output parsing
+    - Test both JSON and text output format handling
+    - _Requirements: 2.4, 7.1, 7.2_
+
+- [ ] 11. Implement C++ language support with g++
+  - [ ] 11.1 Create gppParser.js for C++ compiler output
+    - Write `parseGppOutput(stdout, stderr)` function
+    - Attempt to parse JSON output format first (if -fdiagnostics-format=json is supported)
+    - Implement fallback text parsing using regex pattern `filename:line:col: (error|warning): message`
+    - Extract line numbers and messages from stderr
+    - Return standardized array of { line, message } objects
+    - _Requirements: 2.5, 7.1, 7.2, 7.3, 7.4_
+  
+  - [ ] 11.2 Add C++ language configuration to lintingService
+    - Add 'cpp' entry to LINTER_CONFIG with extension '.cpp', command 'g++', and args ['-fsyntax-only', '-fdiagnostics-format=json']
+    - Wire up gppParser to the C++ language configuration
+    - _Requirements: 2.5, 2.8_
+  
+  - [ ] 11.3 Test C++ linting with sample code
+    - Create test cases with C++ code containing syntax errors
+    - Verify g++ execution and output parsing
+    - Test both JSON and text output format handling
+    - _Requirements: 2.5, 7.1, 7.2_
+
+- [ ] 12. Implement Java class name extraction for proper file naming
+  - [ ] 12.1 Add extractJavaClassName function to fileManager
+    - Write `extractJavaClassName(code)` function using regex pattern `public\s+class\s+(\w+)`
+    - Return extracted class name if found, otherwise return 'Main'
+    - Sanitize class name to prevent directory traversal attacks
+    - _Requirements: 6.1, 6.2, 6.3_
+  
+  - [ ] 12.2 Update createTempFile to support custom filenames
+    - Modify `createTempFile(code, extension, customName)` to accept optional customName parameter
+    - When customName is provided, use it instead of auto-generated name
+    - Ensure unique filenames even with custom names (append random suffix if needed)
+    - _Requirements: 6.2, 6.4_
+
+- [ ] 13. Implement Java language support with javac
+  - [ ] 13.1 Create javacParser.js for Java compiler output
+    - Write `parseJavacOutput(stdout, stderr)` function
+    - Parse stderr text output using regex pattern `\w+\.java:(\d+): (error|warning): (.+)`
+    - Handle multi-line error messages by capturing continuation lines
+    - Extract line numbers and messages
+    - Return standardized array of { line, message } objects
+    - _Requirements: 2.6, 3.1, 3.2, 3.3_
+  
+  - [ ] 13.2 Add Java language configuration to lintingService
+    - Add 'java' entry to LINTER_CONFIG with extension '.java', command 'javac', args ['-Xlint:all']
+    - Set requiresClassNameExtraction flag to true for Java
+    - Wire up javacParser to the Java language configuration
+    - _Requirements: 2.6, 2.8_
+  
+  - [ ] 13.3 Update lintCode function to handle Java class name extraction
+    - Check if language config has requiresClassNameExtraction flag
+    - If true, extract class name from code using fileManager.extractJavaClassName()
+    - Pass custom filename to createTempFile for Java files
+    - _Requirements: 6.1, 6.2, 6.3, 6.4_
+  
+  - [ ] 13.4 Test Java linting with sample code
+    - Create test cases with Java code containing public class declarations
+    - Test with code containing no public class (should use Main.java)
+    - Verify javac execution and output parsing
+    - Test that filename matches class name
+    - _Requirements: 2.6, 6.1, 6.2, 6.3_
+
+- [ ] 14. Update API documentation and tests for new languages
+  - [ ] 14.1 Update server README with new language support
+    - Document C, C++, and Java language support
+    - Add installation instructions for gcc, g++, and javac
+    - Provide example API requests for each new language
+    - _Requirements: 2.4, 2.5, 2.6_
+  
+  - [ ] 14.2 Add integration tests for C, C++, and Java
+    - Write tests for POST /lint with valid C code
+    - Write tests for POST /lint with valid C++ code
+    - Write tests for POST /lint with valid Java code
+    - Write tests for Java class name extraction scenarios
+    - Verify error responses are in standardized format
+    - _Requirements: 2.4, 2.5, 2.6, 6.1, 6.2, 6.3_

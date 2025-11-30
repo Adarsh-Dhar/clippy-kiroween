@@ -50,7 +50,7 @@ Client Response ← Express Router ← Standardized Results
 ```typescript
 {
   code: string,      // Required: The code snippet to lint
-  language: string   // Required: 'python' | 'go' | 'javascript'
+  language: string   // Required: 'python' | 'go' | 'javascript' | 'c' | 'cpp' | 'java'
 }
 ```
 
@@ -103,6 +103,25 @@ const LINTER_CONFIG = {
     command: 'eslint',
     args: ['--format=json'],
     parser: parseEslintOutput
+  },
+  c: {
+    extension: '.c',
+    command: 'gcc',
+    args: ['-fsyntax-only', '-fdiagnostics-format=json'],
+    parser: parseGccOutput
+  },
+  cpp: {
+    extension: '.cpp',
+    command: 'g++',
+    args: ['-fsyntax-only', '-fdiagnostics-format=json'],
+    parser: parseGppOutput
+  },
+  java: {
+    extension: '.java',
+    command: 'javac',
+    args: ['-Xlint:all'],
+    parser: parseJavacOutput,
+    requiresClassNameExtraction: true
   }
 }
 ```
@@ -112,16 +131,22 @@ const LINTER_CONFIG = {
 **Functions:**
 ```javascript
 // Create temporary file with code content
-async function createTempFile(code, extension)
+async function createTempFile(code, extension, customName)
 
 // Delete temporary file
 async function deleteTempFile(filepath)
+
+// Extract Java class name from code
+function extractJavaClassName(code)
 ```
 
 **Implementation Details:**
 - Uses `tmp` library for temporary file creation
 - Generates unique filenames to prevent conflicts
 - Ensures cleanup in both success and error cases
+- For Java files, supports custom filename based on public class name
+- Uses regex pattern `public class (\w+)` to extract Java class names
+- Defaults to "Main.java" if no public class is found
 
 ### 5. CLI Executor (`server/utils/cliExecutor.js`)
 
@@ -171,13 +196,31 @@ function parseOutput(stdout, stderr) {
 - Extracts messages from the results array
 - Handles multiple files (though we only lint one)
 
+**`gccParser.js`:**
+- Attempts to parse JSON output from gcc (if -fdiagnostics-format=json is supported)
+- Falls back to parsing stderr text output using regex pattern `filename:line:col: error: message`
+- Extracts line number and error message from compiler diagnostics
+- Handles both error and warning messages
+
+**`gppParser.js`:**
+- Attempts to parse JSON output from g++ (if -fdiagnostics-format=json is supported)
+- Falls back to parsing stderr text output using regex pattern `filename:line:col: error: message`
+- Extracts line number and error message from compiler diagnostics
+- Handles both error and warning messages
+
+**`javacParser.js`:**
+- Parses stderr text output from javac
+- Uses regex to extract errors in format `Filename.java:line: error: message`
+- Handles warning messages with format `Filename.java:line: warning: message`
+- Extracts line numbers and messages into standardized format
+
 ## Data Models
 
 ### Lint Request
 ```typescript
 interface LintRequest {
   code: string;
-  language: 'python' | 'go' | 'javascript';
+  language: 'python' | 'go' | 'javascript' | 'c' | 'cpp' | 'java';
 }
 ```
 
@@ -233,10 +276,13 @@ interface ErrorResponse {
 - Test input validation logic
 
 ### Integration Tests
-- Test full /lint endpoint with valid code samples
+- Test full /lint endpoint with valid code samples for all six languages
 - Test error cases (invalid language, missing fields)
 - Test concurrent requests to ensure file cleanup
 - Test with actual linter tools installed
+- Test Java class name extraction with various class declarations
+- Test C/C++ with both JSON and text output formats
+- Test compiler error messages are correctly parsed
 
 ### Manual Testing
 - Verify linters are installed (pylint, golint, eslint)
@@ -245,6 +291,28 @@ interface ErrorResponse {
 - Test with large code snippets
 - Verify CORS headers allow cross-origin requests
 
+## Language-Specific Implementation Details
+
+### C and C++ (gcc/g++)
+- Use `-fsyntax-only` flag to check syntax without generating binaries
+- Use `-fdiagnostics-format=json` flag for structured output (if supported by compiler version)
+- Fallback to parsing stderr text output if JSON format is not available
+- Text format pattern: `filename:line:col: error/warning: message`
+- Both stdout and stderr should be captured for comprehensive error reporting
+
+### Java (javac)
+- Requires filename to match public class name for successful compilation
+- Extract class name using regex: `/public\s+class\s+(\w+)/`
+- If no public class found, use default filename "Main.java"
+- Use `-Xlint:all` flag to enable all compiler warnings
+- Parse stderr output in format: `Filename.java:line: error/warning: message`
+- Handle multi-line error messages by capturing continuation lines
+
+### Compiler Version Compatibility
+- gcc/g++ JSON output format available in GCC 9.0+
+- For older versions, gracefully fall back to text parsing
+- Test both JSON and text parsing paths during implementation
+
 ## Security Considerations
 
 1. **Input Validation**: Strictly validate language parameter to prevent command injection
@@ -252,6 +320,7 @@ interface ErrorResponse {
 3. **Resource Limits**: Set body size limit (10mb) and command timeout (30s)
 4. **No Code Execution**: Only run predefined linter commands, never execute user code directly
 5. **Error Messages**: Avoid exposing system paths or internal details in error responses
+6. **Java Class Name Extraction**: Sanitize extracted class names to prevent directory traversal attacks
 
 ## Performance Considerations
 
@@ -275,6 +344,13 @@ interface ErrorResponse {
 ## Deployment Notes
 
 - Requires Node.js 16+ runtime
-- Requires system-level linters installed: `pylint`, `golint`, `eslint`
+- Requires system-level linters/compilers installed:
+  - Python: `pylint`
+  - Go: `golint`
+  - JavaScript: `eslint`
+  - C: `gcc`
+  - C++: `g++`
+  - Java: `javac` (JDK)
 - Environment variable for port (default: 3001)
 - Suitable for containerization (Docker)
+- For Docker deployments, ensure build-essential (gcc/g++) and default-jdk packages are installed

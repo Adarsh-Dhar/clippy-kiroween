@@ -34,6 +34,9 @@ export const LanguageSelector = ({ selectedLanguage, onLanguageChange }: Languag
         <option value="auto">Auto-detect</option>
         <option value="python">Python</option>
         <option value="javascript">JavaScript</option>
+        <option value="c">C</option>
+        <option value="cpp">C++</option>
+        <option value="java">Java</option>
       </select>
     </div>
   );

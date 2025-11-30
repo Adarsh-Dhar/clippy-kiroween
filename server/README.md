@@ -1,11 +1,11 @@
 # Linting Server Backend
 
-A Node.js Express server that provides a REST API for executing system-level linters on code snippets. Supports Python, Go, and JavaScript.
+A Node.js Express server that provides a REST API for executing system-level linters on code snippets. Supports Python and JavaScript.
 
 ## Features
 
 - REST API endpoint for linting code snippets
-- Support for multiple programming languages (Python, Go, JavaScript)
+- Support for multiple programming languages (Python, JavaScript)
 - Standardized JSON output format
 - Automatic temporary file management
 - CORS enabled for cross-origin requests
@@ -18,7 +18,6 @@ Before running the server, ensure you have the following installed:
 - **npm** (comes with Node.js)
 - **System-level linters**:
   - **Python**: `pip install pylint`
-  - **Go**: `go install golang.org/x/lint/golint@latest`
   - **JavaScript**: `npm install -g eslint`
 
 ## Installation
@@ -73,7 +72,6 @@ Lint a code snippet in the specified language.
 - `code` (string, required): The code snippet to lint
 - `language` (string, required): The programming language. Supported values:
   - `python`
-  - `go`
   - `javascript`
 
 **Success Response (200 OK):**
@@ -122,17 +120,6 @@ curl -X POST http://localhost:3001/lint \
   }'
 ```
 
-### Go Example
-
-```bash
-curl -X POST http://localhost:3001/lint \
-  -H "Content-Type: application/json" \
-  -d '{
-    "code": "package main\n\nfunc main() {\n}\n",
-    "language": "go"
-  }'
-```
-
 ### JavaScript Example
 
 ```bash
@@ -143,6 +130,7 @@ curl -X POST http://localhost:3001/lint \
     "language": "javascript"
   }'
 ```
+
 
 ## Configuration
 
@@ -172,7 +160,6 @@ server/
 │   └── cliExecutor.js    # CLI command execution
 ├── parsers/
 │   ├── pylintParser.js   # Python linter output parser
-│   ├── golintParser.js   # Go linter output parser
 │   └── eslintParser.js   # JavaScript linter output parser
 ├── tests/
 │   └── lint.test.js      # Integration tests
@@ -188,12 +175,9 @@ If you receive errors about linters not being installed:
 
 1. Verify the linter is installed:
    - Python: `pylint --version`
-   - Go: `golint --help`
    - JavaScript: `eslint --version`
 
 2. Ensure the linter is in your PATH
-
-3. For Go's golint, make sure `$GOPATH/bin` is in your PATH
 
 ### Port already in use
 

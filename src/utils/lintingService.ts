@@ -14,14 +14,14 @@ interface BackendResponse {
 /**
  * Lint code using the backend API
  * @param code - The code to lint
- * @param language - The programming language (python, javascript)
+ * @param language - The programming language (python, javascript, c, cpp, java)
  * @returns Promise<ValidationError[]> - Array of validation errors
  */
 export async function lintCode(code: string, language: string): Promise<ValidationError[]> {
   try {
     // Normalize language to lowercase and validate
     const normalizedLanguage = language.toLowerCase();
-    const validLanguages = ['python', 'javascript'];
+    const validLanguages = ['python', 'javascript', 'c', 'cpp', 'java'];
     
     if (!validLanguages.includes(normalizedLanguage)) {
       console.warn(`Invalid language: ${language}, defaulting to javascript`);

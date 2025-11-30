@@ -34,7 +34,6 @@ The app uses a backend server for real linting. To run it:
 
 3. Install system linters (required):
    - Python: `pip install pylint`
-   - Go: `go install golang.org/x/lint/golint@latest`
    - JavaScript: `npm install -g eslint`
 
 4. Start the server:
