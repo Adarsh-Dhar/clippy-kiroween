@@ -2,6 +2,8 @@ import { useEffect } from 'react';
 import { useEditor } from '../contexts/EditorContext';
 import { useFileSystem } from '../contexts/FileSystemContext';
 import { useView } from '../contexts/ViewContext';
+import { useExecution } from './useExecution';
+import { useGame } from '../contexts/GameContext';
 
 export const useKeyboardShortcuts = () => {
   const {
@@ -17,6 +19,8 @@ export const useKeyboardShortcuts = () => {
   
   const { activeFile, updateFileContent, getFileContent } = useFileSystem();
   const { zoomIn, zoomOut, resetZoom } = useView();
+  const { execute, executionState } = useExecution();
+  const { punishmentType } = useGame();
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,6 +36,28 @@ export const useKeyboardShortcuts = () => {
 
       // Ctrl or Cmd key
       const isModifier = e.ctrlKey || e.metaKey;
+
+      // Handle Ctrl+Enter for Run (special case - works even without modifier)
+      if (isModifier && e.key === 'Enter') {
+        e.preventDefault();
+        // Only run if not already executing and not in punishment state
+        if (activeFile && executionState !== 'validating' && executionState !== 'punishment') {
+          const code = getFileContent(activeFile) || '';
+          const extension = activeFile.split('.').pop()?.toLowerCase() || '';
+          const languageMap: { [key: string]: string } = {
+            'py': 'python',
+            'js': 'javascript',
+            'c': 'c',
+            'cpp': 'cpp',
+            'cc': 'cpp',
+            'cxx': 'cpp',
+            'java': 'java',
+          };
+          const language = languageMap[extension] || 'javascript';
+          execute(code, language);
+        }
+        return;
+      }
 
       if (!isModifier) return;
 
@@ -117,6 +143,9 @@ export const useKeyboardShortcuts = () => {
     zoomIn,
     zoomOut,
     resetZoom,
+    execute,
+    executionState,
+    punishmentType,
   ]);
 };
 

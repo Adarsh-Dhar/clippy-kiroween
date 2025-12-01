@@ -6,6 +6,8 @@ import { codeTemplates, insertTemplate } from '../utils/codeTemplates';
 import { FindReplaceDialog } from './FindReplaceDialog';
 import { HelpDialog } from './HelpDialog';
 import { FileDialog } from './FileDialog';
+import { RunButton } from './RunButton';
+import { useExecution } from '../hooks/useExecution';
 
 export const MenuBar = () => {
   const {
@@ -47,6 +49,8 @@ export const MenuBar = () => {
     lineNumbersVisible,
     wordWrap,
   } = useView();
+
+  const { execute, executionState } = useExecution();
 
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showHelpDialog, setShowHelpDialog] = useState(false);
@@ -210,6 +214,27 @@ export const MenuBar = () => {
     setActiveMenu(null);
   };
 
+  const handleRunCode = () => {
+    if (!activeFile) return;
+    
+    const code = getFileContent(activeFile) || '';
+    
+    // Determine language from file extension
+    const extension = activeFile.split('.').pop()?.toLowerCase() || '';
+    const languageMap: { [key: string]: string } = {
+      'py': 'python',
+      'js': 'javascript',
+      'c': 'c',
+      'cpp': 'cpp',
+      'cc': 'cpp',
+      'cxx': 'cpp',
+      'java': 'java',
+    };
+    const language = languageMap[extension] || 'javascript';
+    
+    execute(code, language);
+  };
+
   const menuItems = [
     {
       name: 'File',
@@ -284,7 +309,7 @@ export const MenuBar = () => {
 
   return (
     <>
-      <div ref={menuRef} className="win95-menu relative">
+      <div ref={menuRef} className="win95-menu relative flex items-center">
         {menuItems.map((menu) => (
           <div key={menu.name} className="relative inline-block">
             <button
@@ -330,6 +355,10 @@ export const MenuBar = () => {
             )}
           </div>
         ))}
+        <RunButton 
+          onClick={handleRunCode} 
+          disabled={!activeFile || executionState === 'validating'} 
+        />
       </div>
 
       <FindReplaceDialog
