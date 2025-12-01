@@ -3,7 +3,6 @@ import { TitleBar } from './TitleBar';
 import { MenuBar } from './MenuBar';
 import { EditorArea } from './EditorArea';
 import { ClippyAgent } from './ClippyAgent';
-import { LanguageSelector } from './LanguageSelector';
 import { FileTree } from './FileTree';
 import { FileTabs } from './FileTabs';
 import { ValidationError } from '../utils/codeValidator';
@@ -25,7 +24,6 @@ export const MainWindow = ({
   const { fileTreeVisible } = useView();
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [isLinting, setIsLinting] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
 
   let windowBgColor = 'bg-win95-gray';
   let windowBorderColor = 'border-win95-gray';
@@ -58,12 +56,6 @@ export const MainWindow = ({
         
         {/* Editor Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="mb-2 p-2">
-            <LanguageSelector 
-              selectedLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
-            />
-          </div>
           <FileTabs />
           <div className="flex-1 overflow-hidden p-2">
             <EditorArea 
@@ -72,7 +64,6 @@ export const MainWindow = ({
               onErrorCountChange={onErrorCountChange}
               onErrorsChange={setErrors}
               onLintingChange={setIsLinting}
-              selectedLanguage={selectedLanguage}
             />
           </div>
         </div>

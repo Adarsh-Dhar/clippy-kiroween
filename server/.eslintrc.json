@@ -7,8 +7,7 @@
   "extends": ["eslint:recommended"],
   "parserOptions": {
     "ecmaVersion": 2022,
-    "sourceType": "script",
-    "allowReserved": true
+    "sourceType": "script"
   },
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],

@@ -73,6 +73,33 @@ This feature implements an interactive Clippy agent using the Clippy.js library 
 6. WHEN the Code Validator returns errors, THE Editor Area SHALL update the anger level state based on the number of errors found
 7. WHEN the anger level changes, THE Clippy Component SHALL adjust the Clippy Agent animation to reflect the anger level
 
+### Requirement 9
+
+**User Story:** As a user, I want Clippy to provide context-aware roasts about my specific code errors, so that the feedback is relevant and helpful.
+
+#### Acceptance Criteria
+
+1. WHEN the Backend API receives a lint request, THE Linting Service SHALL execute the language-specific linter before calling the LLM
+2. WHEN the linter returns zero errors, THE Linting Service SHALL return a response with status 'clean' without invoking the LLM
+3. WHEN the linter returns one or more errors, THE Linting Service SHALL extract the top 3 error messages from the linter output
+4. WHEN constructing the LLM prompt, THE Linting Service SHALL include the code snippet, language, and the top 3 error messages in the prompt template
+5. THE LLM prompt template SHALL instruct the model to roast the user specifically about the provided errors and quote error messages when possible
+6. WHEN the Frontend receives a response with status 'clean', THE Clippy Component SHALL not trigger the speak method
+7. WHEN the Frontend receives a roast string from the backend, THE Clippy Component SHALL trigger the speak method with the roast text
+
+### Requirement 10
+
+**User Story:** As a user, I want Clippy's messages to remain visible long enough to read them, so that I don't miss important feedback.
+
+#### Acceptance Criteria
+
+1. THE Clippy Component SHALL calculate message display duration based on message length
+2. THE Clippy Component SHALL set a base display time of 2000 milliseconds as the minimum duration
+3. THE Clippy Component SHALL add 50 milliseconds per character to the base time
+4. WHEN calculating duration, THE Clippy Component SHALL use the maximum value between base time and character-based time
+5. WHEN the speak method is invoked, THE Clippy Component SHALL apply the calculated duration to the message timeout
+6. THE Clippy Component SHALL remove any hardcoded timeout values from the speak implementation
+
 ### Requirement 6
 
 **User Story:** As a user, I want to see a Blue Screen of Death when I reach maximum anger or submit broken code, so that I experience the consequences of poor code quality in a nostalgic way.

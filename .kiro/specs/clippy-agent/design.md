@@ -545,6 +545,160 @@ Updated thresholds to support 0-5 range:
 - [ ] Clicking anywhere while BSOD shown reloads page
 - [ ] After reload, game starts fresh with anger level 0
 
+## Context-Aware Roasting System
+
+### Backend Flow
+
+The linting service will be enhanced to provide context-aware feedback by running linters before calling the LLM:
+
+**Enhanced Linting Service Flow:**
+1. Receive lint request with code, language
+2. Execute language-specific linter (already implemented)
+3. Parse linter output to extract errors
+4. **Decision Point:**
+   - If `errors.length === 0`: Return `{ status: 'clean' }` without calling LLM
+   - If `errors.length > 0`: Proceed to LLM call
+5. Extract top 3 errors from linter results
+6. Construct dynamic prompt with code snippet, language, and top 3 errors
+7. Call LLM with enhanced prompt
+8. Return roast response
+
+**LLM Prompt Template:**
+```javascript
+const constructRoastPrompt = (code, language, top3Errors) => {
+  return `The user wrote this code:
+\`\`\`${language}
+${code}
+\`\`\`
+
+The compiler/linter found these specific errors:
+${JSON.stringify(top3Errors, null, 2)}
+
+Roast the user specifically about these errors. Quote the error message if possible. Be witty but constructive.`;
+};
+```
+
+**API Response Format:**
+```typescript
+// Clean code (no errors)
+{ status: 'clean' }
+
+// Code with errors
+{ status: 'error', roast: string, errors: Array<{line: number, message: string}> }
+```
+
+### Frontend Integration
+
+**ClippyAgent Enhancement:**
+- Check response status before calling speak()
+- Only trigger Clippy speech when roast is present
+- Handle 'clean' status gracefully (no animation or message)
+
+**Updated Flow:**
+```typescript
+// In component that calls linting API
+const response = await lintCode(code, language);
+
+if (response.status === 'clean') {
+  // No errors, don't trigger Clippy
+  setErrors([]);
+} else if (response.roast) {
+  // Errors found, show roast
+  setErrors(response.errors);
+  clippyAgent.speak(response.roast);
+}
+```
+
+## Dynamic Message Duration
+
+### Calculation Logic
+
+The speak() method will calculate display duration dynamically based on message length:
+
+**Formula:**
+```typescript
+const baseTime = 2000;        // Minimum 2 seconds
+const timePerChar = 50;       // 50ms per character
+const duration = Math.max(baseTime, text.length * timePerChar);
+```
+
+**Examples:**
+- 10 characters: `Math.max(2000, 10 * 50)` = 2000ms (2 seconds)
+- 50 characters: `Math.max(2000, 50 * 50)` = 2500ms (2.5 seconds)
+- 100 characters: `Math.max(2000, 100 * 50)` = 5000ms (5 seconds)
+- 200 characters: `Math.max(2000, 200 * 50)` = 10000ms (10 seconds)
+
+### Implementation in ClippyAgent
+
+**Current Implementation (to be replaced):**
+```typescript
+// Remove hardcoded timeout
+setTimeout(() => {
+  setShowSpeechBubble(false);
+}, 2000); // ❌ Hardcoded
+```
+
+**New Implementation:**
+```typescript
+const speak = (text: string) => {
+  setShowSpeechBubble(true);
+  setGeminiFeedback(text);
+  
+  // Calculate dynamic duration
+  const baseTime = 2000;
+  const timePerChar = 50;
+  const duration = Math.max(baseTime, text.length * timePerChar);
+  
+  // Apply calculated duration
+  setTimeout(() => {
+    setShowSpeechBubble(false);
+  }, duration);
+};
+```
+
+### Edge Cases
+
+**Very Long Messages (>200 chars):**
+- Duration could exceed 10 seconds
+- Consider adding a maximum cap: `Math.min(duration, 15000)` (15 seconds max)
+- Or implement pagination/scrolling for very long messages
+
+**Empty Messages:**
+- `Math.max(2000, 0 * 50)` = 2000ms (base time applies)
+- Safe fallback behavior
+
+**Multiple Rapid Calls:**
+- Clear previous timeout before setting new one
+- Store timeout ID in ref to enable cleanup
+
+**Enhanced Implementation with Cleanup:**
+```typescript
+const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+const speak = (text: string) => {
+  // Clear any existing timeout
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+  }
+  
+  setShowSpeechBubble(true);
+  setGeminiFeedback(text);
+  
+  // Calculate dynamic duration with max cap
+  const baseTime = 2000;
+  const timePerChar = 50;
+  const maxDuration = 15000; // 15 second cap
+  const calculatedDuration = text.length * timePerChar;
+  const duration = Math.min(Math.max(baseTime, calculatedDuration), maxDuration);
+  
+  // Apply calculated duration
+  timeoutRef.current = setTimeout(() => {
+    setShowSpeechBubble(false);
+    timeoutRef.current = null;
+  }, duration);
+};
+```
+
 ## Implementation Notes
 
 ### CDN Script Loading Order
@@ -569,6 +723,8 @@ Critical: jQuery must load before Clippy.js
 - Agent instance stored in ref to prevent re-initialization on re-renders
 - Animation triggers are lightweight function calls
 - No state updates during animation playback to avoid unnecessary renders
+- Debounce LLM API calls to avoid excessive requests (2 second debounce recommended)
+- Cache linter results to avoid redundant linting
 
 ### Backward Compatibility
 

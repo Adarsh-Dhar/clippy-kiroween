@@ -318,3 +318,124 @@
   - Verify page reloads and game restarts fresh
   - After reload, verify anger level is 0 and state is PLAYING
   - _Requirements: 6.2, 6.3, 6.4, 6.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4_
+
+- [x] 22. Enhance backend linting service for context-aware roasts
+  - [x] 22.1 Update linting service to check error count before LLM call
+    - Modify lintCode function or create wrapper function
+    - After linting completes, check if errors.length === 0
+    - If no errors, return response with status: 'clean' without calling LLM
+    - If errors exist, proceed to LLM call
+    - _Requirements: 9.2_
+  
+  - [x] 22.2 Extract top 3 errors from linter results
+    - After linting returns errors, slice first 3 errors from array
+    - Format errors for inclusion in prompt (line number and message)
+    - Handle cases where fewer than 3 errors exist
+    - _Requirements: 9.3_
+  
+  - [x] 22.3 Create dynamic prompt construction function
+    - Create constructRoastPrompt function that accepts code, language, and top3Errors
+    - Build prompt template that includes code snippet in markdown code block
+    - Include language identifier in code block
+    - Add JSON-formatted error list to prompt
+    - Include instruction to roast specifically about provided errors and quote them
+    - _Requirements: 9.4, 9.5_
+  
+  - [x] 22.4 Update API endpoint to use enhanced linting flow
+    - Modify POST /lint or /roast endpoint handler
+    - Call linting service first before any LLM interaction
+    - Use constructRoastPrompt to build LLM request
+    - Return appropriate response format based on error status
+    - Ensure backward compatibility with existing API consumers
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+
+- [x] 23. Update frontend to handle context-aware responses
+  - [x] 23.1 Update API response handling in linting service
+    - Modify frontend linting service to handle new response format
+    - Check for status: 'clean' in response
+    - Extract roast string from response when present
+    - Handle both old and new response formats for backward compatibility
+    - _Requirements: 9.6, 9.7_
+  
+  - [x] 23.2 Update ClippyAgent to conditionally trigger speak
+    - Modify component that receives linting results
+    - Only call speak() method when roast string is present in response
+    - Skip speak() call when status is 'clean'
+    - Clear any existing messages when code is clean
+    - _Requirements: 9.6, 9.7_
+
+- [x] 24. Implement dynamic message duration in ClippyAgent
+  - [x] 24.1 Add timeout ref for cleanup
+    - Create timeoutRef using useRef to store timeout ID
+    - Initialize as null
+    - _Requirements: 10.5_
+  
+  - [x] 24.2 Create or update speak method with dynamic duration
+    - Remove any hardcoded setTimeout values (e.g., 2000, 5000)
+    - Define baseTime constant as 2000 milliseconds
+    - Define timePerChar constant as 50 milliseconds
+    - Calculate duration: Math.max(baseTime, text.length * timePerChar)
+    - Add optional maxDuration cap of 15000ms to prevent excessively long displays
+    - Clear existing timeout before setting new one
+    - Store new timeout ID in timeoutRef
+    - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
+  
+  - [x] 24.3 Update all speech bubble timeout logic
+    - Find all instances of setTimeout with showSpeechBubble
+    - Replace hardcoded durations with calculated duration
+    - Ensure consistent behavior across all message displays
+    - Test with messages of varying lengths (10, 50, 100, 200 chars)
+    - _Requirements: 10.5, 10.6_
+
+- [ ] 25. Add tests for context-aware roasting
+  - [ ] 25.1 Write backend tests for enhanced linting service
+    - Test linting with zero errors returns status: 'clean'
+    - Test linting with errors proceeds to LLM call
+    - Test top 3 errors are correctly extracted
+    - Test prompt construction includes code, language, and errors
+    - Test API endpoint returns correct response format
+    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+  
+  - [ ] 25.2 Write frontend tests for response handling
+    - Test ClippyAgent does not call speak() when status is 'clean'
+    - Test ClippyAgent calls speak() when roast is present
+    - Test error state is cleared when code is clean
+    - Mock API responses for testing
+    - _Requirements: 9.6, 9.7_
+
+- [ ] 26. Add tests for dynamic message duration
+  - [ ] 26.1 Write tests for duration calculation
+    - Test baseTime of 2000ms is minimum duration
+    - Test duration increases by 50ms per character
+    - Test Math.max ensures minimum duration is respected
+    - Test maxDuration cap prevents excessive timeouts
+    - Test short message (10 chars) uses baseTime
+    - Test long message (100 chars) uses calculated time
+    - _Requirements: 10.1, 10.2, 10.3, 10.4_
+  
+  - [ ] 26.2 Write tests for timeout cleanup
+    - Test previous timeout is cleared when speak() called multiple times
+    - Test timeout is stored in ref correctly
+    - Test rapid successive calls don't create multiple active timeouts
+    - Use fake timers for testing
+    - _Requirements: 10.5, 10.6_
+
+- [ ] 27. Manual testing of context-aware roasting
+  - Write code with no errors and verify Clippy does not speak
+  - Write code with 1 error and verify roast mentions that specific error
+  - Write code with 5 errors and verify roast mentions top 3 errors
+  - Verify roast quotes actual error messages from linter
+  - Verify roast is contextually relevant to the code and errors
+  - Test with different languages (JavaScript, Python, etc.)
+  - Verify backend does not call LLM when code is clean
+  - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5, 9.6, 9.7_
+
+- [ ] 28. Manual testing of dynamic message duration
+  - Trigger Clippy message with 10 characters and verify it displays for ~2 seconds
+  - Trigger Clippy message with 50 characters and verify it displays for ~2.5 seconds
+  - Trigger Clippy message with 100 characters and verify it displays for ~5 seconds
+  - Trigger Clippy message with 200 characters and verify it displays for ~10 seconds
+  - Trigger multiple messages rapidly and verify previous message is replaced
+  - Verify no hardcoded timeouts remain in the implementation
+  - Verify very long messages (>300 chars) are capped at reasonable duration
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_

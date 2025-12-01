@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { AnimationController } from './AnimationController';
 import { ValidationError } from '../utils/codeValidator';
 import { getClippyFeedback } from '../utils/geminiService';
+import type { ComplimentResponse, FeedbackResponse } from '../utils/geminiService';
 import { useFileSystem } from '../contexts/FileSystemContext';
 
 interface ClippyAgentProps {
@@ -11,7 +12,17 @@ interface ClippyAgentProps {
   isLinting?: boolean; // Whether code is currently being linted
 }
 
-export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentProps) => {
+const isComplimentResponse = (response: FeedbackResponse): response is ComplimentResponse => {
+  return (
+    response.status === 'clean' &&
+    'type' in response &&
+    // Narrow to compliment responses only
+    (response as ComplimentResponse).type === 'compliment' &&
+    typeof (response as ComplimentResponse).message === 'string'
+  );
+};
+
+export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: ClippyAgentProps) => {
   const { activeFile, getFileContent } = useFileSystem();
   const agentRef = useRef<ClippyAgent | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -19,9 +30,17 @@ export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentPr
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
   const [geminiFeedback, setGeminiFeedback] = useState<string>('');
   const [isLoadingFeedback, setIsLoadingFeedback] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Get code from active file
   const code = activeFile ? getFileContent(activeFile) || '' : '';
+
+  // Keep track of validation errors if provided (for future enhancements / debugging)
+  useEffect(() => {
+    if (_errors && _errors.length > 0) {
+      console.debug('ClippyAgent received validation errors:', _errors);
+    }
+  }, [_errors]);
 
   useEffect(() => {
     console.log('ClippyAgent component mounted');
@@ -255,10 +274,56 @@ export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentPr
     }
   };
 
-  // Fetch Gemini feedback when errors change (debounced)
+  /**
+   * Play a sound effect
+   * @param soundName - The name of the sound to play (without extension)
+   */
+  const playSound = (soundName: string) => {
+    try {
+      const audio = new Audio(`/sounds/${soundName}.mp3`);
+      audio.volume = 0.5;
+      audio.play().catch(err => {
+        console.warn(`Sound effect not available: ${soundName}`, err);
+      });
+    } catch {
+      console.warn('Sound effect not available:', soundName);
+    }
+  };
+
+  /**
+   * Show a message with dynamic duration based on text length
+   * @param text - The message to display
+   */
+  const speak = (text: string) => {
+    // Clear any existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    setShowSpeechBubble(true);
+    setGeminiFeedback(text);
+
+    // Calculate dynamic duration with max cap
+    const baseTime = 2000; // Minimum 2 seconds
+    const timePerChar = 50; // 50ms per character
+    const maxDuration = 15000; // 15 second cap
+    const calculatedDuration = text.length * timePerChar;
+    const duration = Math.min(Math.max(baseTime, calculatedDuration), maxDuration);
+
+    console.log(`Showing message for ${duration}ms (${text.length} chars)`);
+
+    // Apply calculated duration
+    timeoutRef.current = setTimeout(() => {
+      setShowSpeechBubble(false);
+      timeoutRef.current = null;
+    }, duration);
+  };
+
+  // Fetch Gemini feedback when code changes (debounced)
   useEffect(() => {
-    if (!code || !errors || errors.length === 0) {
+    if (!code) {
       setGeminiFeedback('');
+      setShowSpeechBubble(false);
       return;
     }
 
@@ -267,17 +332,31 @@ export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentPr
     // Debounce API calls to avoid excessive requests
     const timeoutId = setTimeout(async () => {
       try {
-        const feedback = await getClippyFeedback(code, errors);
-        setGeminiFeedback(feedback);
-        // Automatically show speech bubble when feedback is received
-        setShowSpeechBubble(true);
-        // Hide it after 5 seconds (longer for Gemini responses)
-        setTimeout(() => {
+        // Call backend roasting service (it will lint first, then roast/compliment)
+        const response = await getClippyFeedback(code, 'javascript');
+
+        if (isComplimentResponse(response)) {
+          // Show compliment with happy animation and sound
+          speak(response.message);
+          playAnimation('Congratulate');
+          playSound('Tada');
+        } else if (response.status === 'clean') {
+          // Clean code but no compliment message (legacy format)
+          setGeminiFeedback('');
           setShowSpeechBubble(false);
-        }, 5000);
+        } else if ('roast' in response && response.roast) {
+          // Errors found with roast, show it with dynamic duration
+          speak(response.roast);
+          // Angry animation is handled by the anger prop
+        } else {
+          // Errors but no roast (LLM failed), don't show bubble
+          setGeminiFeedback('');
+          setShowSpeechBubble(false);
+        }
       } catch (error) {
-        console.error('Error fetching Gemini feedback:', error);
+        console.error('Error fetching Clippy feedback:', error);
         setGeminiFeedback('');
+        setShowSpeechBubble(false);
       } finally {
         setIsLoadingFeedback(false);
       }
@@ -286,15 +365,11 @@ export const ClippyAgent = ({ anger, message, errors, isLinting }: ClippyAgentPr
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [code, errors]);
+  }, [code]);
 
   const handleWriteClick = () => {
-    // Show speech bubble
-    setShowSpeechBubble(true);
-    // Hide it after 3 seconds
-    setTimeout(() => {
-      setShowSpeechBubble(false);
-    }, 3000);
+    // Show speech bubble with dynamic duration
+    speak(displayMessage);
   };
 
   // Determine what message to display

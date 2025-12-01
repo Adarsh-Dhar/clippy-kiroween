@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { ValidationError } from '../utils/codeValidator';
 import { lintCode } from '../utils/lintingService';
-import { detectLanguage } from '../utils/languageDetector';
+import { detectLanguage, detectLanguageFromExtension } from '../utils/languageDetector';
 import { useFileSystem } from '../contexts/FileSystemContext';
 import { useEditor } from '../contexts/EditorContext';
 import { useView } from '../contexts/ViewContext';
@@ -12,10 +12,9 @@ interface EditorAreaProps {
   onErrorCountChange?: (errorCount: number) => void;
   onErrorsChange?: (errors: ValidationError[]) => void;
   onLintingChange?: (isLinting: boolean) => void;
-  selectedLanguage?: string | null;
 }
 
-export const EditorArea = ({ anger, onAngerChange, onErrorCountChange, onErrorsChange, onLintingChange, selectedLanguage }: EditorAreaProps) => {
+export const EditorArea = ({ anger, onAngerChange, onErrorCountChange, onErrorsChange, onLintingChange }: EditorAreaProps) => {
   const { activeFile, getFileContent, updateFileContent } = useFileSystem();
   const { setTextareaRef, saveState } = useEditor();
   const { zoom, lineNumbersVisible, wordWrap } = useView();
@@ -89,8 +88,11 @@ export const EditorArea = ({ anger, onAngerChange, onErrorCountChange, onErrorsC
       }
 
       try {
-        // Use selected language if provided, otherwise auto-detect
-        const language = selectedLanguage || detectLanguage(localContent);
+        // Detect language from file extension first, fallback to code-based detection
+        let language = detectLanguageFromExtension(activeFile);
+        if (!language) {
+          language = detectLanguage(localContent);
+        }
         
         // Call backend API to lint the code
         const validationErrors = await lintCode(localContent, language);
@@ -124,7 +126,7 @@ export const EditorArea = ({ anger, onAngerChange, onErrorCountChange, onErrorsC
     }, 1000);
 
     return () => clearTimeout(timeoutId);
-  }, [localContent, activeFile, selectedLanguage, onErrorsChange, onLintingChange]);
+  }, [localContent, activeFile, onErrorsChange, onLintingChange]);
 
   // Calculate anger level based on error count (0-4 scale)
   useEffect(() => {

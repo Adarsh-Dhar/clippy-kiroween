@@ -1,4 +1,61 @@
 /**
+ * Detect programming language from file extension
+ * @param filePath - The file path or filename
+ * @returns The detected language: 'python', 'javascript', 'c', 'cpp', or 'java' (default: null if unknown)
+ */
+export function detectLanguageFromExtension(filePath: string): string | null {
+  if (!filePath) {
+    return null;
+  }
+
+  // Extract file extension
+  const lastDotIndex = filePath.lastIndexOf('.');
+  if (lastDotIndex === -1 || lastDotIndex === filePath.length - 1) {
+    return null; // No extension found
+  }
+
+  const extension = filePath.substring(lastDotIndex + 1).toLowerCase();
+
+  // Map extensions to languages (matching backend linting service supported languages)
+  const extensionMap: { [key: string]: string } = {
+    // JavaScript
+    'js': 'javascript',
+    'jsx': 'javascript',
+    'mjs': 'javascript',
+    'cjs': 'javascript',
+    
+    // Python
+    'py': 'python',
+    'pyw': 'python',
+    'pyi': 'python',
+    
+    // C
+    'c': 'c',
+    'h': 'c',
+    
+    // C++
+    'cpp': 'cpp',
+    'cxx': 'cpp',
+    'cc': 'cpp',
+    'hpp': 'cpp',
+    'hxx': 'cpp',
+    'h++': 'cpp',
+    
+    // Java
+    'java': 'java',
+    
+    // TypeScript (fallback to javascript for linting)
+    'ts': 'javascript',
+    'tsx': 'javascript',
+    
+    // CSS (fallback to javascript for now, as CSS linting may not be supported)
+    'css': 'javascript',
+  };
+
+  return extensionMap[extension] || null;
+}
+
+/**
  * Detect programming language from code patterns
  * @param code - The code to analyze
  * @returns The detected language: 'python', 'javascript', 'c', 'cpp', or 'java' (default: 'javascript')
