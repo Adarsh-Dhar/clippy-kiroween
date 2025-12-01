@@ -1,15 +1,18 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { AnimationController } from './AnimationController';
 import { ValidationError } from '../utils/codeValidator';
 import { getClippyFeedback } from '../utils/geminiService';
 import type { ComplimentResponse, FeedbackResponse } from '../utils/geminiService';
 import { useFileSystem } from '../contexts/FileSystemContext';
+import { useClippyBrain } from '../hooks/useClippyBrain';
+import type { ClippyAgentInstance } from '../types/clippy';
 
 interface ClippyAgentProps {
   anger?: number;  // Keep for backward compatibility
   message?: string; // Keep for backward compatibility
   errors?: ValidationError[]; // Validation errors for Gemini feedback
   isLinting?: boolean; // Whether code is currently being linted
+  enableBehaviors?: boolean; // Enable autonomous behavior system
 }
 
 const isComplimentResponse = (response: FeedbackResponse): response is ComplimentResponse => {
@@ -22,9 +25,15 @@ const isComplimentResponse = (response: FeedbackResponse): response is Complimen
   );
 };
 
-export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: ClippyAgentProps) => {
+export const ClippyAgent = ({ 
+  anger, 
+  message, 
+  errors: _errors, 
+  isLinting,
+  enableBehaviors = true 
+}: ClippyAgentProps) => {
   const { activeFile, getFileContent } = useFileSystem();
-  const agentRef = useRef<ClippyAgent | null>(null);
+  const agentRef = useRef<ClippyAgentInstance | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const [showSpeechBubble, setShowSpeechBubble] = useState(false);
@@ -34,6 +43,15 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
   
   // Get code from active file
   const code = activeFile ? getFileContent(activeFile) || '' : '';
+
+  // Initialize Clippy Cortex (Requirement 10.2, 10.3)
+  useClippyBrain({
+    agent: agentRef.current,
+    angerLevel: anger || 0,
+    errorCount: _errors?.length || 0,
+    isLinting: isLinting || false,
+    enabled: enableBehaviors && isLoaded
+  });
 
   // Keep track of validation errors if provided (for future enhancements / debugging)
   useEffect(() => {
@@ -84,7 +102,7 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
         console.log('window.clippy object:', window.clippy);
         console.log('Available agents:', window.clippy.agents || 'unknown');
         
-        window.clippy.load('Clippy', (agent: ClippyAgent) => {
+        window.clippy.load('Clippy', (agent: ClippyAgentInstance) => {
           console.log('✅ Clippy agent loaded successfully!', agent);
           console.log('Agent methods:', Object.keys(agent));
           clearTimeout(loadTimeout);
@@ -235,33 +253,9 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
     };
   }, []);
 
-  // Anger-based animation logic (0-4 range, all handled by Clippy)
-  useEffect(() => {
-    if (!isLoaded || !agentRef.current || anger === undefined) {
-      return;
-    }
+  // Old anger-based animation logic removed - now handled by Clippy Cortex (Requirement 10.1)
 
-    const angerAnimations: { [key: number]: string } = {
-      0: 'Idle1_1',      // Calm - idle animation
-      1: 'LookDown',     // Slightly annoyed - looking down at code
-      2: 'GetAttention', // Frustrated - trying to get attention
-      3: 'Wave',         // Very angry - waving frantically
-      4: 'Alert'         // Critical - alert animation (max level)
-    };
-
-    // Cap anger at 4, use Alert animation for any level >= 4
-    const cappedAnger = Math.min(anger, 4);
-    const animationName = angerAnimations[cappedAnger] || 'Idle1_1';
-    
-    try {
-      agentRef.current.play(animationName);
-      console.log(`Playing anger animation: ${animationName} (anger level: ${anger})`);
-    } catch (error) {
-      console.error(`Failed to play anger animation: ${animationName}`, error);
-    }
-  }, [anger, isLoaded]);
-
-  const playAnimation = (animationName: string) => {
+  const playAnimation = useCallback((animationName: string) => {
     if (!agentRef.current) {
       console.warn('Clippy agent not ready');
       return;
@@ -272,13 +266,13 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
     } catch (error) {
       console.error(`Failed to play animation: ${animationName}`, error);
     }
-  };
+  }, []);
 
   /**
    * Play a sound effect
    * @param soundName - The name of the sound to play (without extension)
    */
-  const playSound = (soundName: string) => {
+  const playSound = useCallback((soundName: string) => {
     try {
       const audio = new Audio(`/sounds/${soundName}.mp3`);
       audio.volume = 0.5;
@@ -288,13 +282,13 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
     } catch {
       console.warn('Sound effect not available:', soundName);
     }
-  };
+  }, []);
 
   /**
-   * Show a message with dynamic duration based on text length
+   * Show a message with dynamic duration based on text length (Requirement 8.1, 8.2)
    * @param text - The message to display
    */
-  const speak = (text: string) => {
+  const speak = useCallback((text: string) => {
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -303,21 +297,26 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
     setShowSpeechBubble(true);
     setGeminiFeedback(text);
 
-    // Calculate dynamic duration with max cap
-    const baseTime = 2000; // Minimum 2 seconds
-    const timePerChar = 50; // 50ms per character
-    const maxDuration = 15000; // 15 second cap
-    const calculatedDuration = text.length * timePerChar;
-    const duration = Math.min(Math.max(baseTime, calculatedDuration), maxDuration);
+    // Calculate duration: Math.max(2000, text.length * 70) (Requirement 8.1)
+    const duration = Math.max(2000, text.length * 70);
 
     console.log(`Showing message for ${duration}ms (${text.length} chars)`);
 
-    // Apply calculated duration
+    // Play speaking animation (Tier 1) (Requirement 7.4, 7.5)
+    if (agentRef.current) {
+      try {
+        agentRef.current.play(Math.random() < 0.5 ? 'Explain' : 'Speak');
+      } catch (error) {
+        console.warn('Failed to play speaking animation:', error);
+      }
+    }
+
+    // Apply calculated duration (Requirement 8.2, 8.3)
     timeoutRef.current = setTimeout(() => {
       setShowSpeechBubble(false);
       timeoutRef.current = null;
     }, duration);
-  };
+  }, []);
 
   // Fetch Gemini feedback when code changes (debounced)
   useEffect(() => {
@@ -365,7 +364,7 @@ export const ClippyAgent = ({ anger, message, errors: _errors, isLinting }: Clip
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [code]);
+  }, [code, speak, playAnimation, playSound]);
 
   const handleWriteClick = () => {
     // Show speech bubble with dynamic duration

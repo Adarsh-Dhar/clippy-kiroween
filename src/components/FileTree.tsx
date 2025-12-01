@@ -15,7 +15,6 @@ interface ContextMenuState {
 export const FileTree = ({ onFileSelect }: FileTreeProps) => {
   const {
     files,
-    openFiles,
     activeFile,
     expandedFolders,
     toggleFolder,
@@ -54,7 +53,6 @@ export const FileTree = ({ onFileSelect }: FileTreeProps) => {
   useEffect(() => {
     if (renamingPath && renameInputRef.current) {
       renameInputRef.current.focus();
-      const node = files;
       const getName = (path: string) => {
         const parts = path.split('/').filter(p => p);
         return parts[parts.length - 1] || '';
@@ -216,10 +214,8 @@ export const FileTree = ({ onFileSelect }: FileTreeProps) => {
     }
 
     const isExpanded = expandedFolders.has(node.path);
-    const isOpen = openFiles.includes(node.path);
     const isActive = activeFile === node.path;
     const isFolder = node.type === 'folder';
-    const hasChildren = node.children && node.children.length > 0;
 
     return (
       <div key={node.id}>
@@ -259,7 +255,7 @@ export const FileTree = ({ onFileSelect }: FileTreeProps) => {
               onChange={(e) => setRenameValue(e.target.value)}
               onBlur={handleRename}
               onKeyDown={handleRenameKeyDown}
-              className="flex-1 px-1 py-0 text-xs bg-win95-white border border-win95-darkgray focus:outline-none"
+              className="flex-1 px-1 py-0 text-xs bg-win95-white text-black border border-win95-darkgray focus:outline-none"
               onClick={(e) => e.stopPropagation()}
             />
           ) : (

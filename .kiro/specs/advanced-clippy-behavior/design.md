@@ -1,0 +1,860 @@
+# Design Document
+
+## Overview
+
+The Clippy "Cortex" is an advanced behavior engine that implements a centralized behavior controller for managing all Clippy animations. The system uses a 4-tier priority queue architecture to ensure critical animations (Talking/Alerts) are never interrupted by passive ones (Mouse Tracking).
+
+The solution is built around a custom React hook (`useClippyBrain`) that manages all behavior timers, event listeners, and animation triggers based on real-time user inputs (Typing, Mouse, Logic). This hook integrates with the existing ClippyAgent component and GameContext to create a seamless, intelligent animation system that responds to user activity, code quality, and system events.
+
+## Architecture
+
+### High-Level Component Structure
+
+```
+App.tsx
+  └── GameContext.Provider
+        └── MainWindow.tsx
+              └── ClippyAgent.tsx (Enhanced)
+                    ├── useClippyBrain hook (Clippy Cortex)
+                    │     ├── State Tracking (isSpeaking, isTyping, typingSpeed, lastInteractionTime, mousePosition)
+                    │     ├── Priority System (4-Tier Queue)
+                    │     ├── Tier 1: System Events (Speaking, Roasting, Success, Thinking)
+                    │     ├── Tier 2: Active Reactions (High-speed typing, Anger triggers)
+                    │     ├── Tier 3: Passive Reactions (Mouse Tracking)
+                    │     └── Tier 4: Idle Behaviors (Boredom animations)
+                    ├── Clippy.js Agent Instance
+                    └── Sound Effects (Tada)
+```
+
+### Behavior System Architecture
+
+The Clippy Cortex operates as a 4-tier priority queue system:
+
+**Priority Tiers (Highest to Lowest):**
+1. **Tier 1 (Events)** - Speaking, Roasting, Executing, Success (never interrupted)
+2. **Tier 2 (Active)** - High-speed typing, Anger triggers (can interrupt Tier 3-4)
+3. **Tier 3 (Passive)** - Mouse Tracking (can interrupt Tier 4)
+4. **Tier 4 (Idle)** - Random background movements (lowest priority)
+
+**Rule:** Higher tiers override lower tiers. Lower tiers cannot interrupt higher tiers.
+
+**Flow:**
+```
+User Action → Event Listener → State Update → Priority Check → Animation Queue → Agent.play()
+     ↓
+System Event → Priority Check → Animation Queue → Agent.play() + Sound Effect
+     ↓
+Idle Timer → Anger-Based Selection → Priority Check → Animation Queue → Agent.play()
+```
+
+### Key Design Decisions
+
+**1. Centralized Behavior Controller (Cortex)**
+- Encapsulates all behavior logic in `useClippyBrain.ts`
+- Manages state tracking for isSpeaking, isTyping, typingSpeed, lastInteractionTime, mousePosition
+- Implements 4-tier priority queue system
+- Keeps ClippyAgent component clean and maintainable
+
+**2. Priority Queue Architecture**
+- Maintains a `currentTier` ref to track active animation tier (1-4)
+- Higher tiers always override lower tiers
+- Lower tiers are blocked when higher tiers are active
+- Automatically resumes lower tier behaviors when higher tier animations complete
+
+**3. Window-Based Mouse Tracking**
+- Uses window dimensions (not Clippy position) for quadrant calculation
+- Left: mouseX < windowWidth * 0.4
+- Right: mouseX > windowWidth * 0.6
+- Up: mouseY < windowHeight * 0.2
+- Down: mouseY > windowHeight * 0.8
+- 200ms debounce to prevent spasming
+
+**4. Anger-Based Idle Selection**
+- Idle animations change based on anger level
+- Anger 0: Calm animations (ScratchHead, Idle1_1)
+- Anger 1-2: Annoyed animations (CheckingWatch, LookDown)
+- Anger 3+: Mad animations (GetAttention, GestureDown)
+
+**5. Sound Integration**
+- Preloads Tada sound effect on initialization
+- Triggers sound only on Congratulate animation (clean code achievement)
+- Sound plays independently of animation timing
+
+**6. Speech Bubble Protection**
+- Speech bubbles calculate duration: Math.max(2000, text.length * 70)
+- Speech bubble timing is independent from animation timing
+- New animations cannot dismiss speech bubbles prematurely
+
+## Components and Interfaces
+
+### useClippyBrain Hook (The Cortex)
+
+**Location:** `src/hooks/useClippyBrain.ts`
+
+**Hook Signature:**
+```typescript
+interface UseClippyBrainOptions {
+  agent: any | null; // Clippy.js agent instance
+  angerLevel: number;
+  errorCount: number;
+  isLinting: boolean;
+  enabled?: boolean;
+}
+
+export function useClippyBrain(options: UseClippyBrainOptions): void
+```
+
+**Internal State:**
+```typescript
+// State Tracking (Requirement 5.2)
+const [isSpeaking, setIsSpeaking] = useState(false);
+const [isTyping, setIsTyping] = useState(false);
+const typingSpeedRef = useRef<number>(0); // WPM
+const lastInteractionTimeRef = useRef<number>(Date.now());
+const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+// Priority System
+const currentTierRef = useRef<1 | 2 | 3 | 4 | null>(null);
+
+// Timers
+const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const mouseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const typingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const stareTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+// Tracking
+const lastMouseQuadrantRef = useRef<'left' | 'right' | 'up' | 'down' | null>(null);
+const keystrokesRef = useRef<number[]>([]); // Timestamps for WPM calculation
+const prevAngerRef = useRef<number>(0);
+const prevErrorCountRef = useRef<number>(0);
+
+// Sound
+const tadaSoundRef = useRef<HTMLAudioElement | null>(null);
+```
+
+**Key Methods:**
+
+```typescript
+// Play animation with tier-based priority checking (Requirement 6)
+const playAnimationWithTier = (
+  animationName: string,
+  tier: 1 | 2 | 3 | 4
+): boolean => {
+  // Safety check (Requirement 9.1)
+  if (!agent) {
+    return false;
+  }
+  
+  // Check if current tier is higher (Requirement 6.3, 6.4, 6.5)
+  if (currentTierRef.current !== null && currentTierRef.current < tier) {
+    return false; // Lower tier cannot interrupt higher tier
+  }
+  
+  // Play animation with error handling (Requirement 9.2, 9.3)
+  try {
+    agent.play(animationName);
+    currentTierRef.current = tier;
+    
+    // Reset tier after animation completes (estimate 3-5 seconds)
+    setTimeout(() => {
+      if (currentTierRef.current === tier) {
+        currentTierRef.current = null;
+      }
+    }, 4000);
+    
+    return true;
+  } catch (error) {
+    console.warn(`Failed to play animation: ${animationName}`, error);
+    return false;
+  }
+};
+
+// Select anger-based idle animation (Requirement 1.3, 1.4, 1.5)
+const getAngerBasedIdleAnimation = (anger: number): string => {
+  if (anger === 0) {
+    // Calm
+    return Math.random() < 0.5 ? 'ScratchHead' : 'Idle1_1';
+  } else if (anger >= 1 && anger <= 2) {
+    // Annoyed
+    return Math.random() < 0.5 ? 'CheckingWatch' : 'LookDown';
+  } else {
+    // Mad (anger >= 3)
+    return Math.random() < 0.5 ? 'GetAttention' : 'GestureDown';
+  }
+};
+
+// Calculate typing speed from keypress intervals (Requirement 3.4)
+const calculateTypingSpeed = (): number => {
+  if (keystrokesRef.current.length < 2) return 0;
+  
+  const now = Date.now();
+  const recentKeystrokes = keystrokesRef.current.filter(ts => ts > now - 60000);
+  keystrokesRef.current = recentKeystrokes;
+  
+  if (recentKeystrokes.length < 2) return 0;
+  
+  const timeSpan = now - recentKeystrokes[0];
+  const wpm = (recentKeystrokes.length / 5) * (60000 / timeSpan);
+  
+  return wpm;
+};
+
+// Determine mouse quadrant based on window dimensions (Requirement 2.2, 2.3, 2.4, 2.5)
+const getMouseQuadrant = (x: number, y: number): 'left' | 'right' | 'up' | 'down' | null => {
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  
+  if (x < windowWidth * 0.4) return 'left';
+  if (x > windowWidth * 0.6) return 'right';
+  if (y < windowHeight * 0.2) return 'up';
+  if (y > windowHeight * 0.8) return 'down';
+  
+  return null; // Center zone - no animation
+};
+
+// Play Tada sound (Requirement 7.2, 7.6)
+const playTadaSound = () => {
+  if (tadaSoundRef.current) {
+    tadaSoundRef.current.currentTime = 0;
+    tadaSoundRef.current.play().catch(err => {
+      console.warn('Failed to play Tada sound:', err);
+    });
+  }
+};
+```
+
+### Tier 4: Idle Behavior Loop
+
+**Implementation (Requirement 1):**
+```typescript
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  const scheduleNextIdle = () => {
+    // 8-12 second interval (Requirement 1.1)
+    const interval = 8000 + Math.random() * 4000;
+    
+    idleTimerRef.current = setTimeout(() => {
+      const timeSinceInteraction = Date.now() - lastInteractionTimeRef.current;
+      
+      // Only play if no interaction for 5 seconds (Requirement 1.2)
+      if (timeSinceInteraction >= 5000) {
+        const animation = getAngerBasedIdleAnimation(angerLevel);
+        playAnimationWithTier(animation, 4); // Tier 4 (Requirement 1.6)
+      }
+      
+      // Schedule next idle check
+      scheduleNextIdle();
+    }, interval);
+  };
+  
+  scheduleNextIdle();
+  
+  return () => {
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+  };
+}, [enabled, agent, angerLevel]);
+```
+
+### Tier 3: Mouse Tracker (The "Haunted" Gaze)
+
+**Implementation (Requirement 2):**
+```typescript
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  const handleMouseMove = (event: MouseEvent) => {
+    mousePositionRef.current = { x: event.clientX, y: event.clientY };
+    
+    // Clear existing debounce timer
+    if (mouseDebounceRef.current) {
+      clearTimeout(mouseDebounceRef.current);
+    }
+    
+    // Set new debounce timer (200ms - Requirement 2.6)
+    mouseDebounceRef.current = setTimeout(() => {
+      // Only active if not speaking and not typing (Requirement 2.7)
+      if (isSpeaking || isTyping) {
+        return;
+      }
+      
+      const mouseX = mousePositionRef.current.x;
+      const mouseY = mousePositionRef.current.y;
+      
+      // Determine quadrant based on window dimensions (Requirement 2.2-2.5)
+      const quadrant = getMouseQuadrant(mouseX, mouseY);
+      
+      // Only trigger if quadrant changed and is not null
+      if (quadrant && quadrant !== lastMouseQuadrantRef.current) {
+        lastMouseQuadrantRef.current = quadrant;
+        
+        const animationMap = {
+          left: 'LookLeft',
+          right: 'LookRight',
+          up: 'LookUp',
+          down: 'LookDown'
+        };
+        
+        playAnimationWithTier(animationMap[quadrant], 3); // Tier 3 (Requirement 2.8)
+      }
+    }, 200);
+  };
+  
+  window.addEventListener('mousemove', handleMouseMove);
+  
+  return () => {
+    window.removeEventListener('mousemove', handleMouseMove);
+    if (mouseDebounceRef.current) {
+      clearTimeout(mouseDebounceRef.current);
+    }
+  };
+}, [enabled, agent, isSpeaking, isTyping]);
+```
+
+### Tier 2: Typing Monitor
+
+**Implementation (Requirement 3):**
+```typescript
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  const handleKeyDown = (event: KeyboardEvent) => {
+    // Only track keystrokes in editor
+    const target = event.target as HTMLElement;
+    if (!target.matches('textarea, [contenteditable="true"]')) {
+      return;
+    }
+    
+    // Ignore modifier keys
+    if (event.key === 'Shift' || event.key === 'Control' || 
+        event.key === 'Alt' || event.key === 'Meta') {
+      return;
+    }
+    
+    // Update state (Requirement 3.1, 3.5)
+    setIsTyping(true);
+    lastInteractionTimeRef.current = Date.now();
+    
+    // Record keystroke timestamp
+    keystrokesRef.current.push(Date.now());
+    
+    // Calculate current typing speed (Requirement 3.4)
+    const wpm = calculateTypingSpeed();
+    typingSpeedRef.current = wpm;
+    
+    // Trigger Writing animation if typing fast (Requirement 3.2, 3.6)
+    if (wpm > 100) {
+      playAnimationWithTier('Writing', 2); // Tier 2
+    }
+    
+    // Reset inactivity timer
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+    
+    // Set new inactivity timer (3 seconds - Requirement 3.3)
+    typingTimerRef.current = setTimeout(() => {
+      setIsTyping(false);
+      
+      // User stopped typing for 3 seconds with errors (Requirement 3.3, 3.7)
+      if (errorCount > 0) {
+        playAnimationWithTier('GetAttention', 2); // Tier 2
+      }
+    }, 3000);
+  };
+  
+  window.addEventListener('keydown', handleKeyDown);
+  
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown);
+    if (typingTimerRef.current) {
+      clearTimeout(typingTimerRef.current);
+    }
+  };
+}, [enabled, agent, errorCount]);
+```
+
+### Tier 2: Anger Reactor
+
+**Implementation (Requirement 4):**
+```typescript
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  // Check if anger increased (Requirement 4.1)
+  if (angerLevel > prevAngerRef.current) {
+    // Immediate Alert reaction (Requirement 4.1, 4.4)
+    playAnimationWithTier('Alert', 2); // Tier 2
+    
+    // After Alert, do the "stare" (Requirement 4.2)
+    setTimeout(() => {
+      playAnimationWithTier('LookFront', 2); // Tier 2
+      
+      // Lock in stare for 3 seconds (Requirement 4.2, 4.3)
+      stareTimerRef.current = setTimeout(() => {
+        // Return to normal priority system
+        currentTierRef.current = null;
+      }, 3000);
+    }, 2000); // Wait for Alert animation to finish
+  }
+  
+  prevAngerRef.current = angerLevel;
+  
+  return () => {
+    if (stareTimerRef.current) {
+      clearTimeout(stareTimerRef.current);
+    }
+  };
+}, [angerLevel, enabled, agent]);
+```
+
+### Tier 1: System Events
+
+**Implementation (Requirement 7):**
+```typescript
+// Success/Clean Code Detection (Requirement 7.1, 7.2)
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  // Check if errors went from >0 to 0 (clean code achieved)
+  if (prevErrorCountRef.current > 0 && errorCount === 0) {
+    playAnimationWithTier('Congratulate', 1); // Tier 1
+    playTadaSound(); // Requirement 7.2
+  }
+  
+  prevErrorCountRef.current = errorCount;
+}, [errorCount, enabled, agent]);
+
+// Backend Loading/Thinking (Requirement 7.3)
+useEffect(() => {
+  if (!enabled || !agent) {
+    return;
+  }
+  
+  if (isLinting) {
+    playAnimationWithTier('Think', 1); // Tier 1
+  }
+}, [isLinting, enabled, agent]);
+
+// Preload Tada sound (Requirement 7.6)
+useEffect(() => {
+  tadaSoundRef.current = new Audio('/sounds/tada.mp3');
+  tadaSoundRef.current.preload = 'auto';
+  
+  return () => {
+    if (tadaSoundRef.current) {
+      tadaSoundRef.current.pause();
+      tadaSoundRef.current = null;
+    }
+  };
+}, []);
+```
+
+### ClippyAgent Component Updates
+
+**Enhanced Props Interface:**
+```typescript
+interface ClippyAgentProps {
+  anger?: number;
+  message?: string;
+  errors?: ValidationError[];
+  isLinting?: boolean;
+  enableBehaviors?: boolean; // Toggle behavior system
+}
+```
+
+**Integration with useClippyBrain (Requirement 10):**
+```typescript
+export const ClippyAgent = ({ 
+  anger, 
+  message, 
+  errors, 
+  isLinting,
+  enableBehaviors = true
+}: ClippyAgentProps) => {
+  const agentRef = useRef<any | null>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [showSpeechBubble, setShowSpeechBubble] = useState(false);
+  const [speechText, setSpeechText] = useState('');
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // ... existing code ...
+  
+  // Track speaking state (Requirement 8.5)
+  const speak = (text: string) => {
+    setSpeechText(text);
+    setShowSpeechBubble(true);
+    
+    // Calculate duration (Requirement 8.1)
+    const duration = Math.max(2000, text.length * 70);
+    
+    // Play speaking animation (Tier 1)
+    if (agentRef.current) {
+      try {
+        agentRef.current.play(Math.random() < 0.5 ? 'Explain' : 'Speak');
+      } catch (error) {
+        console.warn('Failed to play speaking animation:', error);
+      }
+    }
+    
+    // Clear existing timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    
+    // Set new timeout (Requirement 8.2, 8.3)
+    timeoutRef.current = setTimeout(() => {
+      setShowSpeechBubble(false);
+      timeoutRef.current = null;
+    }, duration);
+  };
+  
+  // Initialize Clippy Cortex (Requirement 10.2, 10.3)
+  useClippyBrain({
+    agent: agentRef.current,
+    angerLevel: anger || 0,
+    errorCount: errors?.length || 0,
+    isLinting: isLinting || false,
+    enabled: enableBehaviors && isLoaded
+  });
+  
+  // ... rest of component (remove old animation loops per Requirement 10.1) ...
+};
+```
+
+## Data Models
+
+### Animation Priority Tiers
+
+```typescript
+type AnimationTier = 1 | 2 | 3 | 4;
+
+interface AnimationRequest {
+  name: string;
+  tier: AnimationTier;
+  timestamp: number;
+}
+
+// Tier Definitions
+const TIER = {
+  EVENTS: 1,    // Speaking, Roasting, Executing, Success
+  ACTIVE: 2,    // High-speed typing, Anger triggers
+  PASSIVE: 3,   // Mouse tracking
+  IDLE: 4       // Random background movements
+} as const;
+```
+
+### Mouse Quadrant
+
+```typescript
+type MouseQuadrant = 'left' | 'right' | 'up' | 'down' | null;
+
+interface MousePosition {
+  x: number;
+  y: number;
+}
+
+interface WindowDimensions {
+  width: number;
+  height: number;
+}
+```
+
+### Typing Metrics
+
+```typescript
+interface TypingMetrics {
+  keystrokes: number[]; // Array of timestamps
+  wpm: number;          // Words per minute
+  isTyping: boolean;    // Currently typing
+  lastInteractionTime: number; // Timestamp of last interaction
+}
+```
+
+### Cortex State
+
+```typescript
+interface CortexState {
+  currentTier: AnimationTier | null;
+  isSpeaking: boolean;
+  isTyping: boolean;
+  typingSpeed: number;
+  lastInteractionTime: number;
+  mousePosition: MousePosition;
+  mouseQuadrant: MouseQuadrant;
+  isStaring: boolean;
+}
+```
+
+## Error Handling
+
+### Agent Not Ready
+
+**Scenario**: Hook called before Clippy agent is loaded
+
+**Handling**:
+- Check `agent` parameter for null/undefined before any operations
+- Early return from all effect hooks if agent is not ready
+- No error logging needed (normal during initialization)
+
+### Animation Playback Failures
+
+**Scenario**: `agent.play()` throws error or animation doesn't exist
+
+**Handling**:
+- Wrap all `agent.play()` calls in try-catch
+- Log error to console with animation name
+- Continue normal operation (don't crash the app)
+- Return false from `playAnimationWithPriority` to indicate failure
+
+```typescript
+try {
+  agent.play(animationName);
+  return true;
+} catch (error) {
+  console.warn(`Failed to play animation: ${animationName}`, error);
+  return false;
+}
+```
+
+### DOM Element Not Found
+
+**Scenario**: Cannot find Clippy element for position calculation
+
+**Handling**:
+- Check for element existence before calling `getBoundingClientRect()`
+- Return early if element not found
+- Retry on next mouse move (self-healing)
+- No error logging needed (element may not be rendered yet)
+
+```typescript
+const clippyElement = document.querySelector('.clippy') as HTMLElement;
+if (!clippyElement) {
+  return; // Try again on next mouse move
+}
+```
+
+### Event Listener Cleanup
+
+**Scenario**: Component unmounts while timers/listeners are active
+
+**Handling**:
+- Store all timer IDs in refs
+- Clear all timers in cleanup functions
+- Remove all event listeners in cleanup functions
+- Ensure no memory leaks
+
+```typescript
+return () => {
+  if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+  if (mouseDebounceRef.current) clearTimeout(mouseDebounceRef.current);
+  if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+  if (stareTimerRef.current) clearTimeout(stareTimerRef.current);
+  
+  window.removeEventListener('mousemove', handleMouseMove);
+  window.removeEventListener('keydown', handleKeyDown);
+};
+```
+
+### Rapid State Changes
+
+**Scenario**: Anger level or error count changes rapidly
+
+**Handling**:
+- Use refs to track previous values
+- Only trigger reactions on actual increases (not decreases)
+- Debounce rapid changes if needed
+- Cancel pending animations when new higher priority arrives
+
+### Browser Performance
+
+**Scenario**: Too many animations causing performance issues
+
+**Handling**:
+- Limit idle animation frequency (minimum 1 second between)
+- Use debouncing for all user input reactions
+- Check `requestAnimationFrame` availability for smooth animations
+- Provide `enabled` prop to disable behaviors if needed
+
+## Testing Strategy
+
+### Unit Tests
+
+**useClippyBehavior Hook:**
+- Test idle timer schedules correctly based on anger level
+- Test idle animations are selected randomly
+- Test mouse tracking calculates quadrants correctly
+- Test mouse debouncing prevents rapid animation changes
+- Test typing speed calculation is accurate
+- Test typing monitor triggers Writing animation at >100 WPM
+- Test inactivity timer triggers GetAttention after 5 seconds with errors
+- Test anger reactor triggers Alert and LookFront on anger increase
+- Test stare locks for 3 seconds after anger increase
+- Test animation priority system prevents lower priority from interrupting higher
+- Test cleanup removes all timers and event listeners
+
+**ClippyAgent Integration:**
+- Test isSpeaking state prevents behavior animations
+- Test enableBehaviors prop toggles behavior system
+- Test behavior system doesn't interfere with existing speak() method
+- Test behavior system respects existing animation system
+
+### Integration Tests
+
+**Full Behavior System:**
+- Test idle animations play when user is inactive
+- Test mouse movements trigger directional looking
+- Test fast typing triggers Writing animation
+- Test stopping typing with errors triggers GetAttention
+- Test anger increase triggers immediate Alert reaction
+- Test speech bubbles prevent all behavior animations
+- Test behavior animations resume after speech completes
+- Test multiple rapid user actions are handled gracefully
+
+### Manual Testing Checklist
+
+**Idle Behaviors:**
+- [ ] Clippy shows idle animations every 5-10 seconds when inactive
+- [ ] Idle animations include LookRight, LookLeft, LookUp, LookDown, ScratchHead, CheckingWatch
+- [ ] Idle animations are random (not always the same sequence)
+- [ ] When anger level is 3+, idle animations happen more frequently
+- [ ] Idle animations don't play while Clippy is speaking
+
+**Mouse Tracking:**
+- [ ] Moving mouse to left of Clippy makes him look left
+- [ ] Moving mouse to right of Clippy makes him look right
+- [ ] Moving mouse above Clippy makes him look up
+- [ ] Moving mouse below Clippy makes him look down
+- [ ] Rapid mouse movements don't cause animation spasming
+- [ ] Clippy only looks when mouse stays in quadrant for 500ms
+
+**Typing Reactions:**
+- [ ] Typing very fast (>100 WPM) triggers Writing animation
+- [ ] Stopping typing for 5 seconds with errors triggers GetAttention
+- [ ] Stopping typing with no errors doesn't trigger GetAttention
+- [ ] Typing in non-editor elements doesn't trigger animations
+- [ ] Modifier keys (Shift, Ctrl, Alt) don't count as keystrokes
+
+**Anger Reactions:**
+- [ ] Increasing anger level triggers immediate Alert animation
+- [ ] After Alert, Clippy stares forward (LookFront) for 3 seconds
+- [ ] After stare, Clippy returns to normal idle behavior
+- [ ] Anger reactions interrupt idle animations
+- [ ] Anger reactions don't interrupt speech bubbles
+
+**Animation Priorities:**
+- [ ] Speech bubbles always take priority over all behaviors
+- [ ] Reactive animations (anger, typing) interrupt idle animations
+- [ ] Idle animations don't interrupt reactive or speech animations
+- [ ] Behavior system can be disabled with enableBehaviors prop
+
+**Performance:**
+- [ ] No noticeable lag or performance issues
+- [ ] Animations are smooth and responsive
+- [ ] No memory leaks after extended use
+- [ ] Browser console shows no errors
+
+## Implementation Notes
+
+### Animation Names
+
+Based on Clippy.js documentation, available animations include:
+- **Idle**: Idle1_1, Idle1_2, Idle1_3
+- **Looking**: LookLeft, LookRight, LookUp, LookDown, LookFront
+- **Reactions**: Alert, GetAttention, Wave, Writing
+- **Thinking**: ScratchHead, Think
+- **Time**: CheckingWatch
+- **Emotions**: Congratulate, Pleased, Sad
+
+### Timing Considerations
+
+**Idle Intervals:**
+- Base (anger 0-2): 5-10 seconds (randomized)
+- Frustrated (anger 3): 3-6 seconds
+- Critical (anger 4): 2-4 seconds
+- Maximum (anger 5): 1-2 seconds
+
+**Debounce Timers:**
+- Mouse movement: 500ms
+- Typing speed calculation: Rolling 60-second window
+- Inactivity detection: 5 seconds
+
+**Animation Durations (estimated):**
+- Most animations: 2-4 seconds
+- Speaking: Variable based on text length
+- Stare (LookFront): 3 seconds (enforced)
+
+### Performance Optimization
+
+**Minimize Re-renders:**
+- Use refs for all internal state that doesn't need to trigger renders
+- Only update React state for UI-visible changes (isSpeaking)
+- Avoid creating new functions in render (use useCallback if needed)
+
+**Efficient Event Handling:**
+- Use passive event listeners where possible
+- Debounce all high-frequency events (mousemove, keydown)
+- Remove listeners immediately on unmount
+
+**Memory Management:**
+- Clear all timers in cleanup functions
+- Limit keystroke history to 60 seconds
+- Don't store unnecessary data in refs
+
+### Browser Compatibility
+
+**Supported Features:**
+- `getBoundingClientRect()` - All modern browsers
+- `setTimeout/clearTimeout` - Universal support
+- `addEventListener/removeEventListener` - Universal support
+- `Date.now()` - Universal support
+
+**Fallbacks:**
+- If Clippy element not found, skip position-based features
+- If animation fails, log and continue (don't crash)
+- If performance issues detected, provide disable option
+
+### Integration with Existing Features
+
+**Speech System:**
+- Behavior system observes `isSpeaking` state
+- Never interrupts speech animations
+- Resumes idle behaviors after speech completes
+
+**Anger System:**
+- Reads anger level from GameContext
+- Adjusts idle frequency based on anger
+- Triggers reactive animations on anger changes
+
+**Error Tracking:**
+- Reads error count from props
+- Uses error count for inactivity reactions
+- Doesn't modify error state
+
+### Future Enhancements
+
+**Potential Additions:**
+- Sound effects for certain behaviors
+- More complex animation sequences
+- Context-aware idle animations (time of day, code language)
+- User preferences for behavior frequency
+- Analytics tracking for behavior engagement
+- Accessibility options (reduce motion)
+
+**Extensibility:**
+- Hook design allows easy addition of new behavior types
+- Priority system can accommodate more levels if needed
+- Animation pool can be expanded without code changes
+- Behavior system can be completely disabled via prop

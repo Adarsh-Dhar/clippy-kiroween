@@ -1,0 +1,16 @@
+PLACEHOLDER: tada.mp3 needed
+
+The Clippy Cortex requires a tada.mp3 sound file in this directory.
+
+To add it:
+1. Find or create a celebratory sound effect (1-2 seconds)
+2. Convert to MP3 format
+3. Save as "tada.mp3" in this directory
+4. Delete this placeholder file
+
+The application will work without it, but the sound won't play when achieving clean code.
+
+Suggested sources:
+- https://freesound.org/ (search for "tada" or "celebration")
+- https://mixkit.co/free-sound-effects/
+- Record your own celebration sound

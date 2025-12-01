@@ -11,13 +11,22 @@ interface ClippyAgent {
   stopCurrent(): void;
 }
 
+// Type alias to avoid conflict with component name
+export type ClippyAgentInstance = ClippyAgent;
+
 interface ClippyStatic {
   load(name: string, callback: (agent: ClippyAgent) => void): void;
   agents?: string[];
 }
 
-interface Window {
-  clippy: ClippyStatic;
-  jQuery?: unknown;
-  $?: unknown;
+declare global {
+  interface Window {
+    clippy: ClippyStatic;
+    jQuery?: unknown;
+    $?: unknown;
+  }
 }
+
+// Re-export Cortex types for convenience
+export type { AnimationTier, MouseQuadrant, UseClippyBrainOptions } from '../hooks/useClippyBrain';
+export { TIER } from '../hooks/useClippyBrain';

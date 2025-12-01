@@ -14,6 +14,11 @@ This directory contains sound effects for the execution system.
    - Should be a low, ominous drone sound
    - Used as background audio in The Void punishment
 
+3. **tada.mp3** - Celebration sound for clean code achievement
+   - Duration: ~1-2 seconds
+   - Used when Clippy plays Congratulate animation
+   - Should sound celebratory and positive
+
 ## Adding Audio Files
 
 To add these audio files:
