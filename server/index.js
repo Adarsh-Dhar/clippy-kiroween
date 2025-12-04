@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const lintRouter = require('./routes/lintRouter');
+const memoryRouter = require('./routes/memoryRouter');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,6 +20,7 @@ app.use(bodyParser.json({
 
 // Register routes
 app.use('/', lintRouter);
+app.use('/api/memory', memoryRouter);
 
 // Centralized error handling middleware
 app.use((err, req, res, next) => {

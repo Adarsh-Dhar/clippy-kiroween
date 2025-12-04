@@ -46,19 +46,30 @@ interface MemoryProviderProps {
  * Provider component for memory context
  */
 export const MemoryProvider = ({ children }: MemoryProviderProps) => {
-  const [summary, setSummary] = useState(memoryService.getSummary());
+  const [summary, setSummary] = useState({
+    totalMistakes: 0,
+    commonMistakes: 0,
+    totalPatterns: 0,
+    totalInteractions: 0,
+    totalDeaths: 0,
+  });
+
+  // Load initial summary
+  useEffect(() => {
+    memoryService.getSummary().then(setSummary);
+  }, []);
 
   // Refresh summary periodically
   useEffect(() => {
     const interval = setInterval(() => {
-      setSummary(memoryService.getSummary());
+      memoryService.getSummary().then(setSummary);
     }, 5000); // Update every 5 seconds
 
     return () => clearInterval(interval);
   }, []);
 
   const refresh = useCallback(() => {
-    setSummary(memoryService.getSummary());
+    memoryService.getSummary().then(setSummary);
   }, []);
 
   const value: MemoryContextType = {

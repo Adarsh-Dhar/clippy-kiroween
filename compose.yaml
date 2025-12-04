@@ -3,5 +3,12 @@ services:
     image: postgres:15
     environment:
       POSTGRES_PASSWORD: example
+      POSTGRES_USER: postgres
+      POSTGRES_DB: clippy_memory
     ports:
       - "5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

@@ -47,6 +47,7 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
   // State Tracking (Requirement 5.2)
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [commonMistakes, setCommonMistakes] = useState<any[]>([]); // Cached common mistakes
   const typingSpeedRef = useRef<number>(0); // WPM
   const lastInteractionTimeRef = useRef<number>(Date.now());
   const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -132,8 +133,7 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
    * @returns Animation name
    */
   const getAngerBasedIdleAnimation = (anger: number): string => {
-    // Check if user is a repeat offender
-    const commonMistakes = memoryService.getCommonMistakes();
+    // Check if user is a repeat offender (using cached value)
     const isRepeatOffender = commonMistakes.length > 5;
 
     if (anger === 0) {
@@ -265,6 +265,28 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
     };
   }, []);
 
+  // Load common mistakes into cache (for async memory service)
+  useEffect(() => {
+    if (!enabled) return;
+
+    const loadCommonMistakes = async () => {
+      try {
+        const mistakes = await memoryService.getCommonMistakes();
+        setCommonMistakes(mistakes);
+      } catch (error) {
+        console.warn('Failed to load common mistakes:', error);
+        setCommonMistakes([]);
+      }
+    };
+
+    loadCommonMistakes();
+
+    // Refresh every 30 seconds
+    const interval = setInterval(loadCommonMistakes, 30000);
+
+    return () => clearInterval(interval);
+  }, [enabled]);
+
   // Tier 1: Success/Clean Code Detection (Requirement 7.1, 7.2)
   useEffect(() => {
     if (!enabled || !agent) {
@@ -337,8 +359,7 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
 
         // User stopped typing for 3 seconds with errors (Requirement 3.3, 3.7)
         if (errorCount > 0) {
-          // Check if they keep making the same mistakes
-          const commonMistakes = memoryService.getCommonMistakes();
+          // Check if they keep making the same mistakes (using cached value)
           if (commonMistakes.length > 3) {
             // Extra aggressive for repeat offenders
             playAnimationWithTier('Wave', TIER.ACTIVE);
