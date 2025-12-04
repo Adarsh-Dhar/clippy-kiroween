@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MainWindow } from './components/MainWindow';
 import { GameProvider, useGame } from './contexts/GameContext';
 import { FileSystemProvider, useFileSystem } from './contexts/FileSystemContext';
@@ -10,6 +10,7 @@ import { ClippyJail } from './components/ClippyJail';
 import { TheVoid } from './components/TheVoid';
 import { BSOD } from './components/BSOD';
 import { ApologyModal } from './components/ApologyModal';
+import { gameStateService } from './services/gameStateService';
 
 function EditorWrapper() {
   const { activeFile, getFileContent, updateFileContent } = useFileSystem();
@@ -47,6 +48,38 @@ function EditorContent() {
   } = useGame();
   const containerRef = useRef<HTMLDivElement>(null);
   const [angerLevel, setLocalAngerLevel] = useState(0);
+  
+  // Watch for MCP-triggered punishments
+  useEffect(() => {
+    const checkPunishments = async () => {
+      try {
+        const punishment = await gameStateService.getPunishment();
+        if (punishment) {
+          // Map punishment type to our PunishmentType
+          const typeMap: Record<string, 'bsod' | 'apology' | 'jail' | 'void' | null> = {
+            bsod: 'bsod',
+            apology: 'apology',
+            jail: 'jail',
+            void: 'void',
+            glitch: 'jail', // Map glitch to jail for now
+          };
+          
+          const mappedType = typeMap[punishment.type] || null;
+          if (mappedType) {
+            setPunishmentType(mappedType);
+            setExecutionState('punishment');
+          }
+        }
+      } catch (error) {
+        console.error('Error checking for punishments:', error);
+      }
+    };
+    
+    // Check every second for MCP-triggered punishments
+    const interval = setInterval(checkPunishments, 1000);
+    
+    return () => clearInterval(interval);
+  }, [setPunishmentType, setExecutionState]);
 
   const handleAngerChange = (level: number) => {
     setLocalAngerLevel(level);

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { memoryService } from '../services/memoryService';
+import { gameStateService } from '../services/gameStateService';
 
 export type ExecutionState = 'idle' | 'validating' | 'success' | 'punishment';
 export type PunishmentType = 'bsod' | 'apology' | 'jail' | 'void' | null;
@@ -41,6 +42,50 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   
   // Track previous anger level for memory system
   const prevAngerLevelRef = useRef(0);
+  
+  // Track if we've initialized from server
+  const initializedRef = useRef(false);
+  
+  // Poll game state from server (synced with hooks/MCP)
+  useEffect(() => {
+    // Initial load
+    const loadGameState = async () => {
+      try {
+        const state = await gameStateService.getGameState();
+        setAngerLevel(state.angerLevel);
+        setErrorCount(state.errorCount);
+        initializedRef.current = true;
+      } catch (error) {
+        console.error('Failed to load initial game state:', error);
+      }
+    };
+    
+    loadGameState();
+    
+    // Poll every 2 seconds for updates from hooks/MCP
+    const interval = setInterval(async () => {
+      try {
+        const state = await gameStateService.getGameState();
+        // Use functional updates to avoid dependency issues
+        setAngerLevel(prev => {
+          if (prev !== state.angerLevel) {
+            return state.angerLevel;
+          }
+          return prev;
+        });
+        setErrorCount(prev => {
+          if (prev !== state.errorCount) {
+            return state.errorCount;
+          }
+          return prev;
+        });
+      } catch (error) {
+        console.error('Failed to poll game state:', error);
+      }
+    }, 2000);
+    
+    return () => clearInterval(interval);
+  }, []); // Empty deps - only run once on mount
 
   // Cap anger level at 4 - let Clippy handle all error states
   useEffect(() => {
@@ -76,12 +121,14 @@ export const GameProvider = ({ children }: GameProviderProps) => {
     setGameState('CRASHED');
   };
 
-  const resetGame = () => {
+  const resetGame = async () => {
     setAngerLevel(0);
     setErrorCount(0);
     setGameState('PLAYING');
     setExecutionState('idle');
     setPunishmentType(null);
+    // Also reset on server
+    await gameStateService.resetGameState();
   };
 
   const value: GameContextType = {

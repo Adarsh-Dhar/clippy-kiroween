@@ -71,7 +71,7 @@ router.post('/lint', async (req, res) => {
  */
 router.post('/roast', async (req, res) => {
   try {
-    const { code, language } = req.body;
+    const { code, language, userId } = req.body;
 
     // Validate required fields
     if (!code) {
@@ -87,7 +87,8 @@ router.post('/roast', async (req, res) => {
     }
 
     // Call roasting service (lints first, then generates roast if errors exist)
-    const result = await lintAndRoast(code, language);
+    // userId is optional - if provided, responses will be personalized with memory
+    const result = await lintAndRoast(code, language, userId || null);
 
     // Return result
     res.status(200).json(result);

@@ -52,6 +52,12 @@ export async function getClippyFeedback(
   filename: string = 'unknown'
 ): Promise<FeedbackResponse> {
   try {
+    // Get userId from memory service for personalized responses
+    // Access the userId through MemoryManager since memoryService doesn't expose it directly
+    const { MemoryManager } = await import('../utils/memoryManager');
+    const memory = MemoryManager.load();
+    const userId = memory?.userId || null;
+
     const response = await fetch(`${BACKEND_API_URL}/roast`, {
       method: 'POST',
       headers: {
@@ -59,7 +65,8 @@ export async function getClippyFeedback(
       },
       body: JSON.stringify({
         code,
-        language
+        language,
+        userId // Include userId for memory-based personalization
       }),
     });
 

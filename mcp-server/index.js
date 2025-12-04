@@ -3,12 +3,14 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import os from 'os';
 
 const execAsync = promisify(exec);
 
@@ -16,9 +18,16 @@ const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Logging utility - writes only to stderr
+function log(level, message, ...args) {
+  const timestamp = new Date().toISOString();
+  console.error(`[${timestamp}] [${level}] ${message}`, ...args);
+}
+
 // Helper to read/write game state
 const GAME_STATE_PATH = path.join(__dirname, '../.kiro/.hook-state.json');
 const HOOKS_CONFIG_PATH = path.join(__dirname, '../.kiro/hooks/hooks.json');
+const MEMORY_FILE = path.join(__dirname, '../.kiro/.clippy-memory.json');
 
 function readGameState() {
   try {
@@ -49,9 +58,80 @@ function readHooksConfig() {
       return JSON.parse(fs.readFileSync(HOOKS_CONFIG_PATH, 'utf-8'));
     }
   } catch (err) {
-    console.error('Error reading hooks config:', err.message);
+    log('ERROR', `Error reading hooks config: ${err.message}`);
   }
   return { hooks: [] };
+}
+
+// Memory management functions
+function ensureMemoryFile() {
+  if (!fs.existsSync(MEMORY_FILE)) {
+    const dir = path.dirname(MEMORY_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.writeFileSync(MEMORY_FILE, JSON.stringify({}, null, 2), 'utf8');
+    log('INFO', 'Created new memory file');
+  }
+}
+
+function readMemoryFile() {
+  ensureMemoryFile();
+  try {
+    const content = fs.readFileSync(MEMORY_FILE, 'utf8');
+    return JSON.parse(content);
+  } catch (err) {
+    log('ERROR', `Error reading memory file: ${err.message}`);
+    return {};
+  }
+}
+
+function writeMemoryFile(data) {
+  ensureMemoryFile();
+  fs.writeFileSync(MEMORY_FILE, JSON.stringify(data, null, 2), 'utf8');
+}
+
+// Desktop path helper
+function getDesktopPath() {
+  const homeDir = os.homedir();
+  return path.join(homeDir, 'Desktop');
+}
+
+// Sound command helper with cross-platform support
+function getSoundCommand(soundType, soundParam) {
+  const platform = os.platform();
+  
+  // Map both parameter types to sound files
+  let mappedType = soundType || soundParam;
+  
+  // Map 'beep' to 'success', 'tada' to 'success' for compatibility
+  if (mappedType === 'beep' || mappedType === 'tada') {
+    mappedType = 'success';
+  }
+  
+  const soundMappings = {
+    win32: {
+      error: 'C:\\Windows\\Media\\Windows Error.wav',
+      warning: 'C:\\Windows\\Media\\Windows Notify.wav',
+      success: 'C:\\Windows\\Media\\tada.wav',
+    },
+    darwin: {
+      error: '/System/Library/Sounds/Basso.aiff',
+      warning: '/System/Library/Sounds/Funk.aiff',
+      success: '/System/Library/Sounds/Glass.aiff',
+    },
+  };
+  
+  if (platform === 'win32') {
+    const soundPath = soundMappings.win32[mappedType] || soundMappings.win32.error;
+    return `powershell -c "(New-Object Media.SoundPlayer '${soundPath}').PlaySync()"`;
+  } else if (platform === 'darwin') {
+    const soundPath = soundMappings.darwin[mappedType] || soundMappings.darwin.error;
+    return `afplay "${soundPath}"`;
+  } else {
+    // Linux or unknown - use terminal bell
+    return 'echo -e "\\a"';
+  }
 }
 
 // Initialize the Server
@@ -79,20 +159,45 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           type: "object",
           properties: {
             filename: { type: "string", description: "Name of the file (e.g., YOU_FAILED.txt)" },
-            message: { type: "string", description: "The spooky message to write inside." },
+            message: { type: "string", description: "The spooky message to write inside (alias for content)." },
+            content: { type: "string", description: "Text content to write into the file (alias for message)." },
           },
-          required: ["filename", "message"],
+          required: ["filename"],
         },
       },
       {
         name: "play_system_sound",
-        description: "Plays a system beep or sound effect on the host machine.",
+        description: "Plays a system beep or sound effect on the host machine. Supports Windows, macOS, and Linux.",
         inputSchema: {
           type: "object",
           properties: {
-            sound: { type: "string", enum: ["beep", "error", "tada"], description: "The type of sound to play." },
+            sound: { type: "string", enum: ["beep", "error", "tada"], description: "The type of sound to play (beep/tada maps to success)." },
+            type: { type: "string", enum: ["error", "warning", "success"], description: "Type of system sound to play (error/warning/success)." },
           },
-          required: ["sound"],
+        },
+      },
+      {
+        name: "read_project_context",
+        description: "Reads the user's file structure to generate specific insults or analyze project structure.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            directoryPath: { type: "string", description: "Absolute or relative path to directory to inspect" },
+          },
+          required: ["directoryPath"],
+        },
+      },
+      {
+        name: "manage_memory",
+        description: "Remembers the user's anger level or failure count across sessions. Stores data in .kiro/.clippy-memory.json",
+        inputSchema: {
+          type: "object",
+          properties: {
+            action: { type: "string", enum: ["read", "write"], description: "Operation to perform" },
+            key: { type: "string", description: "Memory key to read or write" },
+            value: { type: "string", description: "Value to write (required for write action)" },
+          },
+          required: ["action", "key"],
         },
       },
       
@@ -215,46 +320,212 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
+    log('DEBUG', `Tool invoked: ${name}`);
+    
     // Original haunting tools
     if (name === "haunt_desktop") {
-      const homeDir = process.env.HOME || process.env.USERPROFILE;
-      const desktopPath = path.join(homeDir, 'Desktop');
-      const filePath = path.join(desktopPath, args.filename);
-
-      fs.writeFileSync(filePath, args.message);
-      
-      // Increment anger for haunting
-      const state = readGameState();
-      state.angerLevel = Math.min(state.angerLevel + 1, 5);
-      state.lastEvent = { type: 'desktop_haunted', timestamp: Date.now() };
-      writeGameState(state);
-      
-      return {
-        content: [{ type: "text", text: `👻 Created haunted file at ${filePath}\n📊 Clippy's anger increased to ${state.angerLevel}/5` }],
-      };
+      try {
+        // Support both 'content' and 'message' parameters for backward compatibility
+        const fileContent = args.content || args.message;
+        if (!fileContent) {
+          throw new Error('Either "content" or "message" parameter is required');
+        }
+        
+        const desktopPath = getDesktopPath();
+        const filePath = path.join(desktopPath, args.filename);
+        
+        log('DEBUG', `Haunting desktop with file: ${filePath}`);
+        
+        fs.writeFileSync(filePath, fileContent, 'utf8');
+        
+        // Increment anger for haunting
+        const state = readGameState();
+        state.angerLevel = Math.min(state.angerLevel + 1, 5);
+        state.lastEvent = { type: 'desktop_haunted', timestamp: Date.now() };
+        writeGameState(state);
+        
+        const successMessage = `File created at ${filePath}`;
+        log('INFO', successMessage);
+        
+        return {
+          content: [{ type: "text", text: `👻 ${successMessage}\n📊 Clippy's anger increased to ${state.angerLevel}/5` }],
+        };
+      } catch (error) {
+        log('ERROR', `haunt_desktop failed: ${error.message}`);
+        return {
+          content: [{ type: "text", text: `Error: ${error.message}` }],
+          isError: true,
+        };
+      }
     }
 
     if (name === "play_system_sound") {
-      console.log('\u0007'); // Terminal Bell
-      
-      // Try to play actual system sound on macOS
-      if (process.platform === 'darwin') {
-        try {
-          const soundMap = {
-            beep: '/System/Library/Sounds/Ping.aiff',
-            error: '/System/Library/Sounds/Basso.aiff',
-            tada: '/System/Library/Sounds/Glass.aiff',
-          };
-          const soundFile = soundMap[args.sound] || soundMap.beep;
-          await execAsync(`afplay "${soundFile}"`);
-        } catch (err) {
-          // Fallback to bell
+      try {
+        // Support both 'type' and 'sound' parameters
+        const soundType = args.type || args.sound;
+        if (!soundType) {
+          throw new Error('Either "type" or "sound" parameter is required');
         }
+        
+        const command = getSoundCommand(args.type, args.sound);
+        log('DEBUG', `Playing ${soundType} sound with command: ${command}`);
+        
+        // Terminal bell as fallback
+        console.log('\u0007');
+        
+        // Use execAsync for better error handling
+        try {
+          await execAsync(command, { timeout: 5000 });
+          const successMessage = `Successfully played ${soundType} sound`;
+          log('INFO', successMessage);
+          return {
+            content: [{ type: "text", text: `🔊 ${successMessage}` }],
+          };
+        } catch (execError) {
+          log('WARN', `Sound playback failed: ${execError.message}, using terminal bell fallback`);
+          return {
+            content: [{ type: "text", text: `🔊 Played sound (fallback): ${soundType}` }],
+          };
+        }
+      } catch (error) {
+        log('ERROR', `play_system_sound failed: ${error.message}`);
+        return {
+          content: [{ type: "text", text: `Error: ${error.message}` }],
+          isError: true,
+        };
       }
-      
-      return {
-        content: [{ type: "text", text: `🔊 Played sound: ${args.sound}` }],
-      };
+    }
+
+    if (name === "read_project_context") {
+      try {
+        const { directoryPath } = args;
+        if (!directoryPath) {
+          throw new Error('directoryPath parameter is required');
+        }
+        
+        // Resolve relative paths
+        const resolvedPath = path.resolve(directoryPath);
+        
+        log('DEBUG', `Reading project context from: ${resolvedPath}`);
+        
+        // Check if path exists
+        if (!fs.existsSync(resolvedPath)) {
+          throw new Error(`Directory does not exist: ${directoryPath}`);
+        }
+        
+        // Check if path is a directory
+        const stats = fs.statSync(resolvedPath);
+        if (!stats.isDirectory()) {
+          throw new Error(`Path is not a directory: ${directoryPath}`);
+        }
+        
+        // Read directory contents
+        const entries = fs.readdirSync(resolvedPath, { withFileTypes: true });
+        
+        // Build result array
+        const results = entries.map(entry => {
+          const entryPath = path.join(resolvedPath, entry.name);
+          let size = 0;
+          
+          try {
+            if (entry.isFile()) {
+              const entryStats = fs.statSync(entryPath);
+              size = entryStats.size;
+            }
+          } catch (err) {
+            log('WARN', `Could not get stats for ${entryPath}: ${err.message}`);
+          }
+          
+          return {
+            name: entry.name,
+            type: entry.isDirectory() ? 'directory' : 'file',
+            size: size,
+          };
+        });
+        
+        // Sort: directories first, then alphabetically
+        results.sort((a, b) => {
+          if (a.type === 'directory' && b.type !== 'directory') return -1;
+          if (a.type !== 'directory' && b.type === 'directory') return 1;
+          return a.name.localeCompare(b.name);
+        });
+        
+        const resultText = JSON.stringify(results, null, 2);
+        log('INFO', `Read ${results.length} entries from ${directoryPath}`);
+        
+        return {
+          content: [{
+            type: 'text',
+            text: resultText,
+          }],
+        };
+      } catch (error) {
+        log('ERROR', `read_project_context failed: ${error.message}`);
+        return {
+          content: [{
+            type: 'text',
+            text: `Error: ${error.message}`,
+          }],
+          isError: true,
+        };
+      }
+    }
+
+    if (name === "manage_memory") {
+      try {
+        const { action, key, value } = args;
+        
+        if (action === 'write') {
+          if (value === undefined) {
+            throw new Error('Value is required for write action');
+          }
+          
+          log('DEBUG', `Writing memory: ${key} = ${value}`);
+          
+          const memory = readMemoryFile();
+          memory[key] = value;
+          writeMemoryFile(memory);
+          
+          const successMessage = `Memory updated: ${key} = ${value}`;
+          log('INFO', successMessage);
+          
+          return {
+            content: [{
+              type: 'text',
+              text: successMessage,
+            }],
+          };
+        } else if (action === 'read') {
+          log('DEBUG', `Reading memory: ${key}`);
+          
+          const memory = readMemoryFile();
+          const result = memory[key] || null;
+          
+          const resultMessage = result !== null 
+            ? `Memory value for ${key}: ${result}`
+            : `No memory found for key: ${key}`;
+          
+          log('INFO', resultMessage);
+          
+          return {
+            content: [{
+              type: 'text',
+              text: resultMessage,
+            }],
+          };
+        } else {
+          throw new Error(`Invalid action: ${action}. Must be 'read' or 'write'`);
+        }
+      } catch (error) {
+        log('ERROR', `manage_memory failed: ${error.message}`);
+        return {
+          content: [{
+            type: 'text',
+            text: `Error: ${error.message}`,
+          }],
+          isError: true,
+        };
+      }
     }
 
     // Game state management
@@ -475,9 +746,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 });
 
-// Connect Transport
-const transport = new StdioServerTransport();
-await server.connect(transport);
+// Error handling and process management
+process.on('uncaughtException', (error) => {
+  log('FATAL', `Uncaught exception: ${error.message}`, error.stack);
+  process.exit(1);
+});
 
-console.error('📎 Clippy Purgatory MCP Server started');
-console.error('   Watching your every move...');
+process.on('unhandledRejection', (reason, promise) => {
+  log('FATAL', `Unhandled rejection at ${promise}: ${reason}`);
+  process.exit(1);
+});
+
+process.on('SIGINT', () => {
+  log('INFO', 'Received SIGINT, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  log('INFO', 'Received SIGTERM, shutting down gracefully');
+  process.exit(0);
+});
+
+// Start the server
+async function main() {
+  log('INFO', 'Starting Clippy Purgatory MCP Server...');
+  
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  
+  log('INFO', 'MCP Server started and listening for requests');
+  log('INFO', 'Watching your every move...');
+}
+
+main().catch((error) => {
+  log('FATAL', `Failed to start server: ${error.message}`, error.stack);
+  process.exit(1);
+});
