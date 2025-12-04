@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
+import { memoryService } from '../services/memoryService';
 
 export type ExecutionState = 'idle' | 'validating' | 'success' | 'punishment';
 export type PunishmentType = 'bsod' | 'apology' | 'jail' | 'void' | null;
@@ -37,6 +38,9 @@ export const GameProvider = ({ children }: GameProviderProps) => {
   const [errorCount, setErrorCount] = useState(0);
   const [executionState, setExecutionState] = useState<ExecutionState>('idle');
   const [punishmentType, setPunishmentType] = useState<PunishmentType>(null);
+  
+  // Track previous anger level for memory system
+  const prevAngerLevelRef = useRef(0);
 
   // Cap anger level at 4 - let Clippy handle all error states
   useEffect(() => {
@@ -44,6 +48,29 @@ export const GameProvider = ({ children }: GameProviderProps) => {
       setAngerLevel(4);
     }
   }, [angerLevel]);
+
+  // Record anger level changes in memory system
+  useEffect(() => {
+    if (angerLevel !== prevAngerLevelRef.current) {
+      // Determine trigger
+      let trigger = 'user-action';
+      if (angerLevel > prevAngerLevelRef.current) {
+        trigger = errorCount > 0 ? 'syntax-error' : 'user-action';
+      } else if (angerLevel < prevAngerLevelRef.current) {
+        trigger = 'error-fixed';
+      }
+
+      // Record in memory
+      memoryService.recordAngerChange(angerLevel, trigger);
+      
+      // Check for BSOD
+      if (angerLevel >= 5) {
+        memoryService.recordAngerChange(5, 'bsod-triggered');
+      }
+
+      prevAngerLevelRef.current = angerLevel;
+    }
+  }, [angerLevel, errorCount]);
 
   const triggerCrash = () => {
     setGameState('CRASHED');

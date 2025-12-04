@@ -6,6 +6,8 @@ import type { ComplimentResponse, FeedbackResponse } from '../utils/geminiServic
 import { useFileSystem } from '../contexts/FileSystemContext';
 import { useClippyBrain } from '../hooks/useClippyBrain';
 import type { ClippyAgentInstance } from '../types/clippy';
+import { memoryService } from '../services/memoryService';
+import type { InteractionRecord } from '../types/memory';
 
 interface ClippyAgentProps {
   anger?: number;  // Keep for backward compatibility
@@ -287,8 +289,9 @@ export const ClippyAgent = ({
   /**
    * Show a message with dynamic duration based on text length (Requirement 8.1, 8.2)
    * @param text - The message to display
+   * @param type - Type of interaction for memory tracking
    */
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, type: InteractionRecord['type'] = 'help') => {
     // Clear any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -296,6 +299,12 @@ export const ClippyAgent = ({
 
     setShowSpeechBubble(true);
     setGeminiFeedback(text);
+
+    // Record interaction in memory
+    memoryService.recordInteraction(type, text, {
+      angerLevel: anger,
+      errorCount: _errors?.length || 0
+    });
 
     // Calculate duration: Math.max(2000, text.length * 70) (Requirement 8.1)
     const duration = Math.max(2000, text.length * 70);
@@ -316,7 +325,7 @@ export const ClippyAgent = ({
       setShowSpeechBubble(false);
       timeoutRef.current = null;
     }, duration);
-  }, []);
+  }, [anger, _errors]);
 
   // Fetch Gemini feedback when code changes (debounced)
   useEffect(() => {
@@ -332,11 +341,11 @@ export const ClippyAgent = ({
     const timeoutId = setTimeout(async () => {
       try {
         // Call backend roasting service (it will lint first, then roast/compliment)
-        const response = await getClippyFeedback(code, 'javascript');
+        const response = await getClippyFeedback(code, 'javascript', activeFile || 'unknown');
 
         if (isComplimentResponse(response)) {
           // Show compliment with happy animation and sound
-          speak(response.message);
+          speak(response.message, 'compliment');
           playAnimation('Congratulate');
           playSound('Tada');
         } else if (response.status === 'clean') {
@@ -345,7 +354,7 @@ export const ClippyAgent = ({
           setShowSpeechBubble(false);
         } else if ('roast' in response && response.roast) {
           // Errors found with roast, show it with dynamic duration
-          speak(response.roast);
+          speak(response.roast, 'roast');
           // Angry animation is handled by the anger prop
         } else {
           // Errors but no roast (LLM failed), don't show bubble

@@ -1,3 +1,5 @@
+import { memoryService } from '../services/memoryService';
+
 // Backend API URL
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3001';
 
@@ -46,7 +48,8 @@ export type FeedbackResponse = ComplimentResponse | RoastResponse | LegacyRespon
  */
 export async function getClippyFeedback(
   code: string,
-  language: string = 'javascript'
+  language: string = 'javascript',
+  filename: string = 'unknown'
 ): Promise<FeedbackResponse> {
   try {
     const response = await fetch(`${BACKEND_API_URL}/roast`, {
@@ -70,6 +73,24 @@ export async function getClippyFeedback(
     }
 
     const data: FeedbackResponse = await response.json();
+
+    // Record mistakes in memory if errors exist
+    if (data.status === 'error' && 'errors' in data && data.errors) {
+      data.errors.forEach(error => {
+        // Extract error type from message (e.g., "Missing semicolon" -> "missing-semicolon")
+        const errorType = error.message
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '');
+        
+        memoryService.recordMistake(
+          errorType || 'unknown-error',
+          error.message,
+          filename,
+          error.line
+        );
+      });
+    }
 
     // Handle compliment response
     if (data.status === 'clean' && 'type' in data && data.type === 'compliment') {

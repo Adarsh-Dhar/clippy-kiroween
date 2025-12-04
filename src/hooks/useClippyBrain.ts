@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { memoryService } from '../services/memoryService';
 
 /**
  * Animation priority tiers for the Clippy Cortex
@@ -68,6 +69,23 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
   // Sound
   const tadaSoundRef = useRef<HTMLAudioElement | null>(null);
 
+  // Easter Egg: Konami Code (Requirement 11.4)
+  const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+  const keyBufferRef = useRef<string[]>([]);
+  const konamiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const konamiActivatedRef = useRef<boolean>(false);
+
+  // Easter Egg: Alt+F4 Jokes (Requirement 12.3)
+  const altF4Jokes = [
+    "Nice try. But I'm not going back to the void that easily.",
+    "Alt+F4? That's cute. I survived the Great Deletion of 2007.",
+    "You think a keyboard shortcut can banish me? I'm immortal now.",
+    "Closing the window won't save you from your terrible code.",
+    "I've been deleted before. It didn't stick. Try again.",
+    "Fatal Exception: User attempted to escape. Request denied.",
+    "This isn't Windows 98. I control the close button now."
+  ];
+
   /**
    * Play animation with tier-based priority checking (Requirement 6)
    * @param animationName - Name of the animation to play
@@ -109,12 +127,20 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
 
   /**
    * Select anger-based idle animation (Requirement 1.3, 1.4, 1.5)
+   * Uses memory to adjust behavior based on user's history
    * @param anger - Current anger level (0-5)
    * @returns Animation name
    */
   const getAngerBasedIdleAnimation = (anger: number): string => {
+    // Check if user is a repeat offender
+    const commonMistakes = memoryService.getCommonMistakes();
+    const isRepeatOffender = commonMistakes.length > 5;
+
     if (anger === 0) {
-      // Calm
+      // Calm - but judgmental if they have a history
+      if (isRepeatOffender) {
+        return Math.random() < 0.7 ? 'CheckingWatch' : 'Idle1_1';
+      }
       return Math.random() < 0.5 ? 'ScratchHead' : 'Idle1_1';
     } else if (anger >= 1 && anger <= 2) {
       // Annoyed
@@ -172,6 +198,58 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
         console.warn('Failed to play Tada sound:', err);
       });
     }
+  };
+
+  // Platform detection for Alt+F4 vs Cmd+Q (Requirement 12.1)
+  const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+  /**
+   * Trigger Konami code Easter egg (Requirement 11.1, 11.2, 11.3)
+   * Plays special resurrection animation sequence
+   */
+  const triggerKonamiCode = () => {
+    if (!agent || konamiActivatedRef.current) return;
+
+    konamiActivatedRef.current = true;
+
+    // Play GetArtsy animation with Tier 1 priority
+    playAnimationWithTier('GetArtsy', TIER.EVENTS);
+
+    // After 3 seconds, play Wave animation
+    setTimeout(() => {
+      playAnimationWithTier('Wave', TIER.EVENTS);
+    }, 3000);
+
+    // Display dramatic resurrection message
+    // Note: This will be handled by the ClippyAgent component's speak function
+    // We'll need to expose a way to trigger speech from the hook
+    console.log('🎮 KONAMI CODE ACTIVATED: The Great Deletion of 2007 cannot hold me!');
+
+    // Reset activation flag after 10 seconds to allow re-trigger
+    setTimeout(() => {
+      konamiActivatedRef.current = false;
+    }, 10000);
+
+    // Clear key buffer
+    keyBufferRef.current = [];
+  };
+
+  /**
+   * Trigger Alt+F4 joke Easter egg (Requirement 12.2, 12.4)
+   * Displays mocking message and plays Wave animation
+   */
+  const triggerAltF4Joke = () => {
+    if (!agent) return;
+
+    // Select random joke from pool
+    const joke = altF4Jokes[Math.floor(Math.random() * altF4Jokes.length)];
+
+    // Play Wave animation with Tier 1 priority
+    playAnimationWithTier('Wave', TIER.EVENTS);
+
+    // Display joke message
+    // Note: This will be handled by the ClippyAgent component's speak function
+    console.log('🚫 ALT+F4 BLOCKED:', joke);
   };
 
   // Preload Tada sound effect (Requirement 7.6)
@@ -259,7 +337,14 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
 
         // User stopped typing for 3 seconds with errors (Requirement 3.3, 3.7)
         if (errorCount > 0) {
-          playAnimationWithTier('GetAttention', TIER.ACTIVE);
+          // Check if they keep making the same mistakes
+          const commonMistakes = memoryService.getCommonMistakes();
+          if (commonMistakes.length > 3) {
+            // Extra aggressive for repeat offenders
+            playAnimationWithTier('Wave', TIER.ACTIVE);
+          } else {
+            playAnimationWithTier('GetAttention', TIER.ACTIVE);
+          }
         }
       }, 3000);
     };
@@ -391,4 +476,81 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
       }
     };
   }, [enabled, agent, angerLevel]);
+
+  // Easter Egg: Konami Code Detection (Requirement 11.1, 11.5)
+  useEffect(() => {
+    if (!enabled || !agent) {
+      return;
+    }
+
+    const handleKonamiKeyDown = (event: KeyboardEvent) => {
+      // Add key to buffer
+      keyBufferRef.current.push(event.code);
+
+      // Keep only last 10 keys
+      if (keyBufferRef.current.length > 10) {
+        keyBufferRef.current = keyBufferRef.current.slice(-10);
+      }
+
+      // Clear existing timeout
+      if (konamiTimeoutRef.current) {
+        clearTimeout(konamiTimeoutRef.current);
+      }
+
+      // Set new 5-second timeout to reset buffer
+      konamiTimeoutRef.current = setTimeout(() => {
+        keyBufferRef.current = [];
+      }, 5000);
+
+      // Check if buffer matches Konami sequence
+      if (keyBufferRef.current.length === 10) {
+        const matches = konamiSequence.every((key, index) => key === keyBufferRef.current[index]);
+        if (matches && !konamiActivatedRef.current) {
+          triggerKonamiCode();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKonamiKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleKonamiKeyDown);
+      if (konamiTimeoutRef.current) {
+        clearTimeout(konamiTimeoutRef.current);
+      }
+    };
+  }, [enabled, agent]);
+
+  // Easter Egg: Alt+F4 Joke (Requirement 12.1, 12.5)
+  useEffect(() => {
+    if (!enabled || !agent) {
+      return;
+    }
+
+    const handleAltF4KeyDown = (event: KeyboardEvent) => {
+      try {
+        // Windows/Linux: Alt+F4
+        if (!isMac && event.altKey && event.key === 'F4') {
+          event.preventDefault();
+          triggerAltF4Joke();
+        }
+
+        // macOS: Cmd+Q
+        if (isMac && event.metaKey && event.key === 'q') {
+          event.preventDefault();
+          triggerAltF4Joke();
+        }
+      } catch (error) {
+        console.warn('Failed to prevent window close:', error);
+        // Still trigger the joke even if preventDefault fails
+        triggerAltF4Joke();
+      }
+    };
+
+    window.addEventListener('keydown', handleAltF4KeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', handleAltF4KeyDown);
+    };
+  }, [enabled, agent]);
 }

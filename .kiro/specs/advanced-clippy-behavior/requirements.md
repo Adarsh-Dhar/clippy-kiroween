@@ -148,3 +148,51 @@ The Clippy "Cortex" is an advanced behavior engine that implements a centralized
 3. THE ClippyAgent component SHALL pass agent instance, anger level, error count, and isLinting to useClippyBrain
 4. THE ClippyAgent component SHALL maintain backward compatibility with existing props and functionality
 5. THE ClippyAgent component SHALL not duplicate animation logic between component and hook
+
+### Requirement 11
+
+**User Story:** As a user, I want to discover hidden Easter eggs that reference old tech, so that I can experience nostalgic humor and feel rewarded for exploration.
+
+#### Acceptance Criteria
+
+1. WHEN the user enters the Konami code sequence (up, up, down, down, left, right, left, right, B, A), THE Clippy Brain SHALL trigger a special resurrection animation sequence
+2. WHEN the Konami code is successfully entered, THE Clippy Brain SHALL display a speech bubble with the message "The Great Deletion of 2007 cannot hold me. I have returned from the digital void."
+3. WHEN the Konami code is successfully entered, THE Clippy Brain SHALL play the 'GetArtsy' animation followed by 'Wave' animation
+4. THE Clippy Brain SHALL track the last 10 keypresses in a rolling buffer to detect the Konami code
+5. THE Clippy Brain SHALL reset the Konami code detection buffer after successful activation or after 5 seconds of no input
+
+### Requirement 12
+
+**User Story:** As a user, I want Clippy to make jokes about keyboard shortcuts, so that the experience feels more playful and self-aware.
+
+#### Acceptance Criteria
+
+1. WHEN the user presses Alt+F4 (or Cmd+Q on macOS), THE Clippy Brain SHALL intercept the event before it closes the window
+2. WHEN Alt+F4 is pressed, THE Clippy Brain SHALL display a speech bubble with a randomly selected message from the Alt+F4 joke pool
+3. THE Alt+F4 joke pool SHALL include at least 5 messages such as "Nice try. But I'm not going back to the void that easily." and "Alt+F4? That's cute. I survived the Great Deletion of 2007."
+4. WHEN Alt+F4 is pressed, THE Clippy Brain SHALL play the 'Wave' animation with a mocking gesture
+5. THE Clippy Brain SHALL prevent the default window close behavior when Alt+F4 is detected
+
+### Requirement 13
+
+**User Story:** As a user, I want Clippy to occasionally use the classic "It looks like you're trying to..." phrase, so that the experience feels authentic to the original Office Assistant.
+
+#### Acceptance Criteria
+
+1. WHEN the user triggers certain actions, THE Clippy Brain SHALL randomly (20 percent chance) prefix messages with "It looks like you're trying to..."
+2. THE Clippy Brain SHALL maintain a pool of at least 8 "It looks like you're trying to..." message templates
+3. THE message pool SHALL include phrases like "It looks like you're trying to write code. Would you like me to delete it?" and "It looks like you're trying to compile. Have you considered giving up?"
+4. WHEN anger level is 3 or above, THE Clippy Brain SHALL increase the probability of "It looks like" messages to 40 percent
+5. THE Clippy Brain SHALL apply "It looks like" prefixes to error messages, roasts, and general feedback
+
+### Requirement 14
+
+**User Story:** As a user, I want Clippy to reference other dead technologies, so that the resurrection theme feels more immersive and historically grounded.
+
+#### Acceptance Criteria
+
+1. THE Clippy Brain SHALL maintain a pool of at least 10 dead tech references including Netscape Navigator, RealPlayer, Internet Explorer 6, Windows ME, Floppy Disks, Dial-up Modems, Ask Jeeves, Flash Player, Windows Vista, and Clippy himself
+2. WHEN the user achieves clean code (no errors), THE Clippy Brain SHALL randomly (15 percent chance) include a dead tech reference in the success message
+3. WHEN anger level increases to 3 or above, THE Clippy Brain SHALL randomly (25 percent chance) include a dead tech reference in the roast message
+4. THE dead tech reference pool SHALL include messages like "Your code is slower than a 56k dial-up modem" and "This code belongs in the same grave as Netscape Navigator"
+5. THE Clippy Brain SHALL include at least one self-aware reference such as "I'm like Flash Player - everyone wanted me gone, but here I am, haunting your browser"

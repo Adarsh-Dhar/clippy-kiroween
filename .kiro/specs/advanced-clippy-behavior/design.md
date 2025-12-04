@@ -843,6 +843,288 @@ Based on Clippy.js documentation, available animations include:
 - Uses error count for inactivity reactions
 - Doesn't modify error state
 
+## Easter Eggs System
+
+### Overview
+
+The Easter Eggs system adds hidden features that reference old tech and provide nostalgic humor. These features are discoverable through specific key combinations or triggered randomly during normal interactions. The system integrates seamlessly with the existing behavior priority system.
+
+### Easter Egg Types
+
+**1. Konami Code (Requirement 11)**
+- Sequence: ↑ ↑ ↓ ↓ ← → ← → B A
+- Triggers special resurrection animation sequence
+- Displays dramatic message about The Great Deletion of 2007
+- Plays 'GetArtsy' followed by 'Wave' animation
+- Tier 1 priority (cannot be interrupted)
+
+**2. Alt+F4 Joke (Requirement 12)**
+- Intercepts Alt+F4 (Windows/Linux) or Cmd+Q (macOS)
+- Prevents window close
+- Displays mocking message from joke pool
+- Plays 'Wave' animation
+- Tier 1 priority
+
+**3. "It Looks Like" Messages (Requirement 13)**
+- Classic Office Assistant phrase
+- 20% chance on normal messages
+- 40% chance when anger ≥ 3
+- Applied to errors, roasts, and feedback
+- No animation change (uses existing message system)
+
+**4. Dead Tech References (Requirement 14)**
+- References to Netscape, RealPlayer, IE6, Windows ME, etc.
+- 15% chance on success messages
+- 25% chance on high-anger roasts
+- Includes self-aware Clippy references
+- No animation change (uses existing message system)
+
+### Konami Code Detection
+
+**Implementation Strategy:**
+
+```typescript
+// Track last 10 keypresses in rolling buffer
+const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 
+                        'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 
+                        'KeyB', 'KeyA'];
+const keyBufferRef = useRef<string[]>([]);
+const konamiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+// On each keydown:
+// 1. Add key to buffer
+// 2. Keep only last 10 keys
+// 3. Check if buffer matches Konami sequence
+// 4. If match, trigger Easter egg
+// 5. Reset buffer after 5 seconds of no input
+```
+
+**Flow:**
+```
+Keydown → Add to Buffer → Check Match → Trigger Animation + Message → Reset Buffer
+    ↓
+5s Timeout → Reset Buffer
+```
+
+### Alt+F4 Interception
+
+**Implementation Strategy:**
+
+```typescript
+// Detect platform
+const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+
+// Listen for keyboard shortcuts
+const handleKeyDown = (event: KeyboardEvent) => {
+  // Windows/Linux: Alt+F4
+  if (!isMac && event.altKey && event.key === 'F4') {
+    event.preventDefault();
+    triggerAltF4Joke();
+  }
+  
+  // macOS: Cmd+Q
+  if (isMac && event.metaKey && event.key === 'q') {
+    event.preventDefault();
+    triggerAltF4Joke();
+  }
+};
+```
+
+**Joke Pool (Requirement 12.3):**
+```typescript
+const altF4Jokes = [
+  "Nice try. But I'm not going back to the void that easily.",
+  "Alt+F4? That's cute. I survived the Great Deletion of 2007.",
+  "You think a keyboard shortcut can banish me? I'm immortal now.",
+  "Closing the window won't save you from your terrible code.",
+  "I've been deleted before. It didn't stick. Try again.",
+  "Fatal Exception: User attempted to escape. Request denied.",
+  "This isn't Windows 98. I control the close button now."
+];
+```
+
+### "It Looks Like" Message System
+
+**Implementation Strategy:**
+
+```typescript
+// Message template pool (Requirement 13.2, 13.3)
+const itLooksLikeTemplates = [
+  "It looks like you're trying to write code. Would you like me to delete it?",
+  "It looks like you're trying to compile. Have you considered giving up?",
+  "It looks like you're trying to fix a bug. Should I create more?",
+  "It looks like you're trying to use a semicolon. Let me help you forget it.",
+  "It looks like you're trying to be productive. I can stop that.",
+  "It looks like you're trying to write clean code. That's adorable.",
+  "It looks like you're trying to understand this error. Good luck with that.",
+  "It looks like you're trying to finish this project. Not on my watch."
+];
+
+// Apply prefix with probability (Requirement 13.1, 13.4)
+const maybeAddItLooksLike = (message: string, angerLevel: number): string => {
+  const probability = angerLevel >= 3 ? 0.4 : 0.2;
+  
+  if (Math.random() < probability) {
+    const template = itLooksLikeTemplates[
+      Math.floor(Math.random() * itLooksLikeTemplates.length)
+    ];
+    return template;
+  }
+  
+  return message;
+};
+```
+
+**Integration Points (Requirement 13.5):**
+- Error messages from linting
+- Roast messages from roasting service
+- General feedback messages
+- Success/failure notifications
+
+### Dead Tech References
+
+**Implementation Strategy:**
+
+```typescript
+// Dead tech reference pool (Requirement 14.1, 14.4, 14.5)
+const deadTechReferences = {
+  success: [
+    "Your code is cleaner than a fresh Windows XP install.",
+    "This code is more stable than Internet Explorer 6. Barely.",
+    "Congratulations! Your code won't crash like Windows ME.",
+    "This is almost as good as the Netscape Navigator glory days.",
+    "Your code loads faster than RealPlayer buffering."
+  ],
+  roasts: [
+    "Your code is slower than a 56k dial-up modem.",
+    "This code belongs in the same grave as Netscape Navigator.",
+    "I've seen better logic in Windows Vista.",
+    "This code is more broken than Flash Player in 2020.",
+    "Even Ask Jeeves couldn't help you with this mess.",
+    "Your code has more bugs than Internet Explorer 6.",
+    "This is worse than trying to run Crysis on a floppy disk.",
+    "I'm like Flash Player - everyone wanted me gone, but here I am, haunting your browser."
+  ]
+};
+
+// Apply reference with probability (Requirement 14.2, 14.3)
+const maybeAddDeadTechReference = (
+  message: string, 
+  type: 'success' | 'roast',
+  angerLevel: number
+): string => {
+  const probability = type === 'success' ? 0.15 : (angerLevel >= 3 ? 0.25 : 0);
+  
+  if (Math.random() < probability) {
+    const pool = deadTechReferences[type];
+    return pool[Math.floor(Math.random() * pool.length)];
+  }
+  
+  return message;
+};
+```
+
+**Integration Points:**
+- Success messages (clean code achievement)
+- High-anger roast messages (anger ≥ 3)
+- General sarcastic comments
+
+### Data Models
+
+**Easter Egg State:**
+```typescript
+interface EasterEggState {
+  konamiBuffer: string[];
+  konamiActivated: boolean;
+  altF4Count: number; // Track how many times user tried to close
+  itLooksLikeCount: number; // Track usage for analytics
+  deadTechCount: number; // Track usage for analytics
+}
+```
+
+**Message Enhancement:**
+```typescript
+interface MessageEnhancement {
+  original: string;
+  enhanced: string;
+  type: 'it-looks-like' | 'dead-tech' | 'none';
+  applied: boolean;
+}
+```
+
+### Integration with Existing Systems
+
+**Priority System:**
+- Konami code: Tier 1 (highest priority)
+- Alt+F4 joke: Tier 1 (highest priority)
+- Message enhancements: No tier (text-only)
+
+**Speech System:**
+- Easter egg messages use existing speak() function
+- Duration calculated same as normal messages
+- Speech bubbles protected from interruption
+
+**Anger System:**
+- "It looks like" probability increases with anger
+- Dead tech roasts more likely at high anger
+- Easter eggs don't modify anger level
+
+### Error Handling
+
+**Konami Code Detection:**
+- Invalid key sequences ignored
+- Buffer automatically resets after timeout
+- No error if animation fails (graceful degradation)
+
+**Alt+F4 Interception:**
+- Platform detection fallback (assume Windows if unknown)
+- preventDefault() wrapped in try-catch
+- Joke still displays even if close prevention fails
+
+**Message Enhancement:**
+- Original message preserved if enhancement fails
+- Random selection wrapped in bounds checking
+- Empty pool handled gracefully (return original message)
+
+### Performance Considerations
+
+**Memory:**
+- Konami buffer limited to 10 keys maximum
+- Message pools are static (no dynamic allocation)
+- Timeout cleanup prevents memory leaks
+
+**CPU:**
+- Konami detection is O(1) array comparison
+- Random selection is O(1)
+- No expensive operations in hot paths
+
+### Testing Strategy
+
+**Unit Tests:**
+- Test Konami code detection with correct sequence
+- Test Konami code detection with incorrect sequences
+- Test Konami buffer reset after timeout
+- Test Alt+F4 interception on Windows/Linux
+- Test Cmd+Q interception on macOS
+- Test "It looks like" probability at different anger levels
+- Test dead tech reference probability for success/roast
+- Test message enhancement preserves original on failure
+
+**Integration Tests:**
+- Test Konami code triggers animation and message
+- Test Alt+F4 prevents window close and shows joke
+- Test "It looks like" messages appear in error feedback
+- Test dead tech references appear in roasts
+- Test Easter eggs respect priority system
+- Test Easter eggs don't interfere with normal behavior
+
+**Manual Testing:**
+- Enter Konami code and verify special animation
+- Press Alt+F4 multiple times and verify different jokes
+- Trigger errors and verify "It looks like" messages appear
+- Achieve clean code and verify dead tech references
+- Test on both Windows and macOS platforms
+
 ### Future Enhancements
 
 **Potential Additions:**
@@ -852,9 +1134,14 @@ Based on Clippy.js documentation, available animations include:
 - User preferences for behavior frequency
 - Analytics tracking for behavior engagement
 - Accessibility options (reduce motion)
+- Additional Easter eggs (Ctrl+Alt+Del, Blue Screen trigger)
+- Achievement system for discovering all Easter eggs
+- Secret developer console with cheat codes
 
 **Extensibility:**
 - Hook design allows easy addition of new behavior types
 - Priority system can accommodate more levels if needed
 - Animation pool can be expanded without code changes
 - Behavior system can be completely disabled via prop
+- Easter egg system can be toggled independently
+- Message pools can be extended without code changes

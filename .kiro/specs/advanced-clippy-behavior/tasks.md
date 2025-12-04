@@ -301,3 +301,190 @@
   - Test all error handling paths (agent.play() failures, sound failures)
   - Verify application continues to work after errors
   - _Requirements: 5.5, 5.6, 9.1, 9.2, 9.3, 9.4, 9.5, 10.4_
+
+- [x] 18. Implement Konami code Easter egg
+  - [x] 18.1 Create Konami code detection system
+    - Define konamiSequence constant array with correct key codes: ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA']
+    - Create keyBufferRef to track last 10 keypresses
+    - Create konamiTimeoutRef for buffer reset timer
+    - Create konamiActivatedRef to prevent duplicate triggers
+    - _Requirements: 11.4_
+  
+  - [x] 18.2 Implement Konami code keydown handler
+    - Create handleKonamiKeyDown function
+    - Add event.code to keyBufferRef array
+    - Limit buffer to last 10 keys using slice
+    - Clear existing konamiTimeoutRef if present
+    - Set new 5-second timeout to reset buffer
+    - Check if buffer matches konamiSequence
+    - If match and not already activated, trigger Konami Easter egg
+    - _Requirements: 11.1, 11.5_
+  
+  - [x] 18.3 Implement Konami code trigger function
+    - Create triggerKonamiCode function
+    - Set konamiActivatedRef to true
+    - Play 'GetArtsy' animation with Tier 1 priority
+    - After 3 seconds, play 'Wave' animation with Tier 1 priority
+    - Display speech bubble with message: "The Great Deletion of 2007 cannot hold me. I have returned from the digital void."
+    - Reset konamiActivatedRef after 10 seconds to allow re-trigger
+    - Clear keyBufferRef
+    - _Requirements: 11.1, 11.2, 11.3_
+  
+  - [x] 18.4 Set up Konami code event listener
+    - Create useEffect hook with dependencies: enabled, agent
+    - Add global keydown event listener with handleKonamiKeyDown
+    - Remove listener and clear timeout in cleanup function
+    - _Requirements: 11.1_
+
+- [x] 19. Implement Alt+F4 joke Easter egg
+  - [x] 19.1 Create Alt+F4 joke pool
+    - Define altF4Jokes constant array with at least 5 jokes
+    - Include jokes like "Nice try. But I'm not going back to the void that easily."
+    - Include "Alt+F4? That's cute. I survived the Great Deletion of 2007."
+    - Include "You think a keyboard shortcut can banish me? I'm immortal now."
+    - Include "Closing the window won't save you from your terrible code."
+    - Include "Fatal Exception: User attempted to escape. Request denied."
+    - _Requirements: 12.3_
+  
+  - [x] 19.2 Implement platform detection
+    - Create isMac constant using navigator.platform check
+    - Check if platform string includes 'MAC' (case-insensitive)
+    - _Requirements: 12.1_
+  
+  - [x] 19.3 Create Alt+F4 trigger function
+    - Create triggerAltF4Joke function
+    - Select random joke from altF4Jokes array
+    - Display speech bubble with selected joke
+    - Play 'Wave' animation with Tier 1 priority
+    - _Requirements: 12.2, 12.4_
+  
+  - [x] 19.4 Implement Alt+F4 keydown handler
+    - Create handleAltF4KeyDown function
+    - Check for Alt+F4 on Windows/Linux: event.altKey && event.key === 'F4'
+    - Check for Cmd+Q on macOS: event.metaKey && event.key === 'q'
+    - Call event.preventDefault() to prevent window close
+    - Call triggerAltF4Joke()
+    - Wrap preventDefault in try-catch for safety
+    - _Requirements: 12.1, 12.5_
+  
+  - [x] 19.5 Set up Alt+F4 event listener
+    - Create useEffect hook with dependencies: enabled, agent
+    - Add global keydown event listener with handleAltF4KeyDown
+    - Remove listener in cleanup function
+    - _Requirements: 12.1_
+
+- [x] 20. Implement "It looks like" message system
+  - [x] 20.1 Create "It looks like" message pool
+    - Define itLooksLikeTemplates constant array with at least 8 messages
+    - Include "It looks like you're trying to write code. Would you like me to delete it?"
+    - Include "It looks like you're trying to compile. Have you considered giving up?"
+    - Include "It looks like you're trying to fix a bug. Should I create more?"
+    - Include "It looks like you're trying to use a semicolon. Let me help you forget it."
+    - Include "It looks like you're trying to be productive. I can stop that."
+    - Include "It looks like you're trying to write clean code. That's adorable."
+    - Include "It looks like you're trying to understand this error. Good luck with that."
+    - Include "It looks like you're trying to finish this project. Not on my watch."
+    - _Requirements: 13.2, 13.3_
+  
+  - [x] 20.2 Create message enhancement function
+    - Create maybeAddItLooksLike function that accepts message and angerLevel
+    - Calculate probability: 0.4 if angerLevel >= 3, otherwise 0.2
+    - Generate random number and compare to probability
+    - If triggered, select random template from itLooksLikeTemplates
+    - Return selected template or original message
+    - _Requirements: 13.1, 13.4_
+  
+  - [x] 20.3 Integrate with existing message system
+    - Export maybeAddItLooksLike from useClippyBrain hook
+    - Apply enhancement to error messages in ClippyAgent component
+    - Apply enhancement to roast messages from roasting service
+    - Apply enhancement to general feedback messages
+    - _Requirements: 13.5_
+
+- [x] 21. Implement dead tech references system
+  - [x] 21.1 Create dead tech reference pools
+    - Define deadTechReferences object with success and roasts arrays
+    - Add success messages: "Your code is cleaner than a fresh Windows XP install.", "This code is more stable than Internet Explorer 6. Barely.", "Congratulations! Your code won't crash like Windows ME.", "This is almost as good as the Netscape Navigator glory days.", "Your code loads faster than RealPlayer buffering."
+    - Add roast messages: "Your code is slower than a 56k dial-up modem.", "This code belongs in the same grave as Netscape Navigator.", "I've seen better logic in Windows Vista.", "This code is more broken than Flash Player in 2020.", "Even Ask Jeeves couldn't help you with this mess.", "Your code has more bugs than Internet Explorer 6.", "This is worse than trying to run Crysis on a floppy disk."
+    - Add self-aware reference: "I'm like Flash Player - everyone wanted me gone, but here I am, haunting your browser."
+    - _Requirements: 14.1, 14.4, 14.5_
+  
+  - [x] 21.2 Create dead tech reference function
+    - Create maybeAddDeadTechReference function that accepts message, type ('success' | 'roast'), and angerLevel
+    - Calculate probability: 0.15 for success, 0.25 for roast if angerLevel >= 3, otherwise 0
+    - Generate random number and compare to probability
+    - If triggered, select random reference from appropriate pool
+    - Return selected reference or original message
+    - _Requirements: 14.2, 14.3_
+  
+  - [x] 21.3 Integrate with success messages
+    - Export maybeAddDeadTechReference from useClippyBrain hook
+    - Apply enhancement to clean code achievement messages (errorCount goes from >0 to 0)
+    - Pass 'success' as type parameter
+    - _Requirements: 14.2_
+  
+  - [x] 21.4 Integrate with roast messages
+    - Apply enhancement to high-anger roast messages (angerLevel >= 3)
+    - Pass 'roast' as type parameter
+    - Pass current angerLevel to function
+    - _Requirements: 14.3_
+
+- [ ] 22. Manual testing of Konami code Easter egg
+  - Open application and enter Konami code sequence: ↑ ↑ ↓ ↓ ← → ← → B A
+  - Verify 'GetArtsy' animation plays immediately
+  - Verify 'Wave' animation plays after GetArtsy completes
+  - Verify speech bubble displays: "The Great Deletion of 2007 cannot hold me. I have returned from the digital void."
+  - Verify speech bubble remains visible for appropriate duration
+  - Enter partial Konami code and wait 5 seconds, verify buffer resets
+  - Enter Konami code again to verify it can be re-triggered
+  - Enter incorrect sequence and verify no Easter egg triggers
+  - Verify Konami code is Tier 1 (not interrupted by other animations)
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [ ] 23. Manual testing of Alt+F4 joke Easter egg
+  - Test on Windows/Linux: Press Alt+F4
+  - Verify window does not close
+  - Verify speech bubble displays a joke from the pool
+  - Verify 'Wave' animation plays
+  - Press Alt+F4 multiple times and verify different jokes appear
+  - Test on macOS: Press Cmd+Q
+  - Verify window does not close on macOS
+  - Verify joke and animation trigger on macOS
+  - Verify Alt+F4 joke is Tier 1 (not interrupted)
+  - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
+
+- [ ] 24. Manual testing of "It looks like" messages
+  - Introduce code errors and verify some error messages use "It looks like" prefix
+  - Verify approximately 20% of messages at anger level 0-2 use the prefix
+  - Increase anger to level 3 or above
+  - Verify approximately 40% of messages at anger level 3+ use the prefix
+  - Verify "It looks like" messages appear in error feedback
+  - Verify "It looks like" messages appear in roasts
+  - Verify "It looks like" messages appear in general feedback
+  - Verify original message is preserved if enhancement fails
+  - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
+
+- [ ] 25. Manual testing of dead tech references
+  - Introduce code errors, then fix them all to achieve clean code
+  - Verify approximately 15% of success messages include dead tech references
+  - Verify success references include positive comparisons (Windows XP, Netscape glory days)
+  - Increase anger to level 3 or above
+  - Introduce errors to trigger roasts
+  - Verify approximately 25% of high-anger roasts include dead tech references
+  - Verify roast references include negative comparisons (56k modem, Windows Vista)
+  - Verify self-aware Clippy reference appears occasionally
+  - Verify original message is preserved if enhancement fails
+  - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
+
+- [ ] 26. Manual testing of Easter egg integration
+  - Trigger Konami code while other animations are playing
+  - Verify Konami code interrupts lower priority animations
+  - Trigger Alt+F4 joke while typing
+  - Verify Alt+F4 joke takes priority
+  - Verify "It looks like" and dead tech messages don't interfere with animations
+  - Verify Easter eggs work correctly with enableBehaviors prop
+  - Test all Easter eggs with agent not yet loaded
+  - Verify no errors and Easter eggs activate when agent loads
+  - Check browser console for any errors during Easter egg triggers
+  - Verify Easter eggs don't cause memory leaks or performance issues
+  - _Requirements: 11.1, 12.1, 13.1, 14.1_

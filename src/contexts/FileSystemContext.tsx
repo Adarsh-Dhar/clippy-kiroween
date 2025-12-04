@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
 
 export interface FileNode {
   id: string;
@@ -7,6 +7,20 @@ export interface FileNode {
   type: 'file' | 'folder';
   content?: string;
   children?: FileNode[];
+  created?: Date;
+  modified?: Date;
+  accessed?: Date;
+}
+
+export interface FileProperties {
+  name: string;
+  type: string;
+  location: string;
+  size: number;
+  sizeFormatted: string;
+  created: Date;
+  modified: Date;
+  accessed: Date;
 }
 
 interface FileSystemContextType {
@@ -14,6 +28,19 @@ interface FileSystemContextType {
   openFiles: string[];
   activeFile: string | null;
   expandedFolders: Set<string>;
+  diskSpaceUsed: number;
+  diskSpaceLimit: number;
+  fileAssociations: Map<string, string>;
+  showSaveAsDialog: boolean;
+  showOpenDialog: boolean;
+  showFileAssociationDialog: boolean;
+  showPropertiesDialog: boolean;
+  showDiskWarning: boolean;
+  showErrorDialog: boolean;
+  errorDialogMessage: string;
+  errorDialogCode: string;
+  selectedFileForProperties: string | null;
+  pendingFileForAssociation: string | null;
   createFile: (path: string, content?: string) => void;
   createFolder: (path: string) => void;
   deleteNode: (path: string) => void;
@@ -28,6 +55,21 @@ interface FileSystemContextType {
   toggleFolder: (path: string) => void;
   findNode: (path: string) => FileNode | null;
   getNodeByPath: (path: string) => FileNode | null;
+  calculateDiskSpace: () => number;
+  checkDiskSpace: (fileSize: number) => boolean;
+  setFileAssociation: (extension: string, handler: string) => void;
+  getFileAssociation: (extension: string) => string | null;
+  triggerSaveAsDialog: () => void;
+  triggerOpenDialog: () => void;
+  triggerFileError: (message: string, code: string) => void;
+  getFileProperties: (path: string) => FileProperties | null;
+  setShowSaveAsDialog: (show: boolean) => void;
+  setShowOpenDialog: (show: boolean) => void;
+  setShowFileAssociationDialog: (show: boolean) => void;
+  setShowPropertiesDialog: (show: boolean) => void;
+  setShowDiskWarning: (show: boolean) => void;
+  setShowErrorDialog: (show: boolean) => void;
+  setSelectedFileForProperties: (path: string | null) => void;
 }
 
 const FileSystemContext = createContext<FileSystemContextType | undefined>(undefined);
@@ -133,24 +175,35 @@ const cloneNode = (node: FileNode): FileNode => {
 };
 
 export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
+  const now = new Date();
+  
   // Initialize with default project structure
   const [files, setFiles] = useState<FileNode>(() => ({
     id: 'root',
     name: 'root',
     path: '/',
     type: 'folder',
+    created: now,
+    modified: now,
+    accessed: now,
     children: [
       {
         id: generateId(),
         name: 'src',
         path: '/src',
         type: 'folder',
+        created: now,
+        modified: now,
+        accessed: now,
         children: [
           {
             id: generateId(),
             name: 'main.js',
             path: '/src/main.js',
             type: 'file',
+            created: now,
+            modified: now,
+            accessed: now,
             content: `function helloWorld() {
   console.log("Hello, World!");
 }
@@ -164,6 +217,9 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
         name: 'README.md',
         path: '/README.md',
         type: 'file',
+        created: now,
+        modified: now,
+        accessed: now,
         content: '# Project\n\nWelcome to your project!',
       },
     ],
@@ -172,6 +228,139 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
   const [openFiles, setOpenFiles] = useState<string[]>(['/src/main.js']);
   const [activeFile, setActiveFile] = useState<string | null>('/src/main.js');
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['/', '/src']));
+  
+  // New state for disk space and dialogs
+  const [diskSpaceLimit] = useState<number>(10 * 1024 * 1024); // 10MB
+  const [fileAssociations, setFileAssociations] = useState<Map<string, string>>(() => {
+    // Load from localStorage
+    const stored = localStorage.getItem('fileAssociations');
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        return new Map(Object.entries(parsed));
+      } catch (e) {
+        console.error('Failed to load file associations', e);
+      }
+    }
+    // Default associations
+    return new Map([
+      ['.txt', 'text-editor'],
+      ['.js', 'code-editor'],
+      ['.py', 'code-editor'],
+      ['.c', 'code-editor'],
+      ['.cpp', 'code-editor'],
+      ['.java', 'code-editor'],
+      ['.md', 'text-editor'],
+    ]);
+  });
+  
+  const [showSaveAsDialog, setShowSaveAsDialog] = useState(false);
+  const [showOpenDialog, setShowOpenDialog] = useState(false);
+  const [showFileAssociationDialog, setShowFileAssociationDialog] = useState(false);
+  const [showPropertiesDialog, setShowPropertiesDialog] = useState(false);
+  const [showDiskWarning, setShowDiskWarning] = useState(false);
+  const [showErrorDialog, setShowErrorDialog] = useState(false);
+  const [errorDialogMessage, setErrorDialogMessage] = useState('');
+  const [errorDialogCode, setErrorDialogCode] = useState('');
+  const [selectedFileForProperties, setSelectedFileForProperties] = useState<string | null>(null);
+  const [pendingFileForAssociation, setPendingFileForAssociation] = useState<string | null>(null);
+
+  // Calculate disk space recursively
+  const calculateDiskSpaceRecursive = useCallback((node: FileNode): number => {
+    if (node.type === 'file') {
+      return (node.content || '').length;
+    }
+    if (node.children) {
+      return node.children.reduce((total, child) => total + calculateDiskSpaceRecursive(child), 0);
+    }
+    return 0;
+  }, []);
+
+  const diskSpaceUsed = useMemo(() => {
+    return calculateDiskSpaceRecursive(files);
+  }, [files, calculateDiskSpaceRecursive]);
+
+  const calculateDiskSpace = useCallback((): number => {
+    return diskSpaceUsed;
+  }, [diskSpaceUsed]);
+
+  const checkDiskSpace = useCallback((fileSize: number): boolean => {
+    return (diskSpaceUsed + fileSize) <= diskSpaceLimit;
+  }, [diskSpaceUsed, diskSpaceLimit]);
+
+  const setFileAssociation = useCallback((extension: string, handler: string) => {
+    setFileAssociations(prev => {
+      const newMap = new Map(prev);
+      newMap.set(extension, handler);
+      // Save to localStorage
+      const obj = Object.fromEntries(newMap);
+      localStorage.setItem('fileAssociations', JSON.stringify(obj));
+      return newMap;
+    });
+  }, []);
+
+  const getFileAssociation = useCallback((extension: string): string | null => {
+    return fileAssociations.get(extension) || null;
+  }, [fileAssociations]);
+
+  const triggerSaveAsDialog = useCallback(() => {
+    setShowSaveAsDialog(true);
+  }, []);
+
+  const triggerOpenDialog = useCallback(() => {
+    setShowOpenDialog(true);
+  }, []);
+
+  const triggerFileError = useCallback((message: string, code: string) => {
+    setErrorDialogMessage(message);
+    setErrorDialogCode(code);
+    setShowErrorDialog(true);
+    
+    // Emit event for Clippy and GameContext
+    window.dispatchEvent(new CustomEvent('file-error', {
+      detail: { message, code, timestamp: Date.now() }
+    }));
+  }, []);
+
+  const getFileProperties = useCallback((path: string): FileProperties | null => {
+    const node = findNodeInTree(files, path);
+    if (!node) return null;
+
+    const getFileType = (name: string, type: string): string => {
+      if (type === 'folder') return 'File Folder';
+      const ext = name.split('.').pop()?.toLowerCase();
+      const typeMap: { [key: string]: string } = {
+        'txt': 'Text Document',
+        'js': 'JavaScript File',
+        'py': 'Python File',
+        'c': 'C Source File',
+        'cpp': 'C++ Source File',
+        'java': 'Java Source File',
+        'md': 'Markdown Document',
+      };
+      return typeMap[ext || ''] || 'File';
+    };
+
+    const formatFileSize = (bytes: number): string => {
+      if (bytes < 1024) return `${bytes} bytes`;
+      const kb = (bytes / 1024).toFixed(2);
+      return `${bytes.toLocaleString()} bytes (${kb} KB)`;
+    };
+
+    const size = node.type === 'file' ? (node.content || '').length : 0;
+    const parentPath = getParentPath(path);
+
+    return {
+      name: node.name,
+      type: getFileType(node.name, node.type),
+      location: parentPath === '/' ? '/' : parentPath,
+      size,
+      sizeFormatted: formatFileSize(size),
+      created: node.created || new Date(),
+      modified: node.modified || new Date(),
+      accessed: node.accessed || new Date(),
+    };
+  }, [files]);
 
   const findNode = useCallback((path: string): FileNode | null => {
     return findNodeInTree(files, path);
@@ -182,33 +371,68 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
   }, [findNode]);
 
   const createFile = useCallback((path: string, content: string = '') => {
+    // Check disk space before creating
+    const fileSize = content.length;
+    if (!checkDiskSpace(fileSize)) {
+      triggerFileError(
+        'Cannot create file. There is not enough space on the disk.',
+        '0x80070070'
+      );
+      return;
+    }
+
+    // Check if approaching disk limit (80%)
+    const usageAfterCreate = diskSpaceUsed + fileSize;
+    if (usageAfterCreate > diskSpaceLimit * 0.8 && diskSpaceUsed <= diskSpaceLimit * 0.8) {
+      setShowDiskWarning(true);
+      window.dispatchEvent(new CustomEvent('disk-warning', {
+        detail: { used: usageAfterCreate, limit: diskSpaceLimit }
+      }));
+    }
+
     setFiles(prevFiles => {
       const newFiles = { ...prevFiles };
       const parent = findParentNode(newFiles, path);
       
       if (!parent || parent.type !== 'folder') {
         console.error('Cannot create file: parent folder not found');
+        triggerFileError(
+          'Cannot create file. The system cannot find the path specified.',
+          '0x80070003'
+        );
         return prevFiles;
       }
       
       // Check if file already exists
       if (findNodeInTree(newFiles, path)) {
         console.error('File already exists');
+        triggerFileError(
+          'Cannot create file. A file with that name already exists.',
+          '0x80070050'
+        );
         return prevFiles;
       }
       
+      const now = new Date();
       const newNode: FileNode = {
         id: generateId(),
         name: getNameFromPath(path),
         path,
         type: 'file',
         content,
+        created: now,
+        modified: now,
+        accessed: now,
       };
       
       addToParent(parent, newNode);
+      
+      // Update parent modified time
+      parent.modified = now;
+      
       return newFiles;
     });
-  }, []);
+  }, [checkDiskSpace, diskSpaceUsed, diskSpaceLimit, triggerFileError]);
 
   const createFolder = useCallback((path: string) => {
     setFiles(prevFiles => {
@@ -226,15 +450,21 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
         return prevFiles;
       }
       
+      const now = new Date();
       const newNode: FileNode = {
         id: generateId(),
         name: getNameFromPath(path),
         path,
         type: 'folder',
         children: [],
+        created: now,
+        modified: now,
+        accessed: now,
       };
       
       addToParent(parent, newNode);
+      parent.modified = now;
+      
       return newFiles;
     });
   }, []);
@@ -428,10 +658,34 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
         return prevFiles;
       }
       
+      // Check disk space for the size difference
+      const oldSize = (node.content || '').length;
+      const newSize = content.length;
+      const sizeDiff = newSize - oldSize;
+      
+      if (sizeDiff > 0 && !checkDiskSpace(sizeDiff)) {
+        triggerFileError(
+          'Cannot save file. There is not enough space on the disk.',
+          '0x80070070'
+        );
+        return prevFiles;
+      }
+
+      // Check if approaching disk limit (80%)
+      const usageAfterUpdate = diskSpaceUsed + sizeDiff;
+      if (usageAfterUpdate > diskSpaceLimit * 0.8 && diskSpaceUsed <= diskSpaceLimit * 0.8) {
+        setShowDiskWarning(true);
+        window.dispatchEvent(new CustomEvent('disk-warning', {
+          detail: { used: usageAfterUpdate, limit: diskSpaceLimit }
+        }));
+      }
+      
       node.content = content;
+      node.modified = new Date();
+      
       return newFiles;
     });
-  }, []);
+  }, [checkDiskSpace, diskSpaceUsed, diskSpaceLimit, triggerFileError]);
 
   const getFileContent = useCallback((path: string): string | null => {
     const node = findNode(path);
@@ -476,6 +730,19 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
     openFiles,
     activeFile,
     expandedFolders,
+    diskSpaceUsed,
+    diskSpaceLimit,
+    fileAssociations,
+    showSaveAsDialog,
+    showOpenDialog,
+    showFileAssociationDialog,
+    showPropertiesDialog,
+    showDiskWarning,
+    showErrorDialog,
+    errorDialogMessage,
+    errorDialogCode,
+    selectedFileForProperties,
+    pendingFileForAssociation,
     createFile,
     createFolder,
     deleteNode,
@@ -490,6 +757,21 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
     toggleFolder,
     findNode,
     getNodeByPath,
+    calculateDiskSpace,
+    checkDiskSpace,
+    setFileAssociation,
+    getFileAssociation,
+    triggerSaveAsDialog,
+    triggerOpenDialog,
+    triggerFileError,
+    getFileProperties,
+    setShowSaveAsDialog,
+    setShowOpenDialog,
+    setShowFileAssociationDialog,
+    setShowPropertiesDialog,
+    setShowDiskWarning,
+    setShowErrorDialog,
+    setSelectedFileForProperties,
   };
 
   return (
