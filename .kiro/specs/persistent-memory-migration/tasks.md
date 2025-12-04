@@ -8,7 +8,7 @@
   - Set up Prisma client generator with correct output path
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7_
 
-- [-] 2. Set up database infrastructure
+- [ ] 2. Set up database infrastructure
   - Add DATABASE_URL environment variable configuration
   - Create Prisma migration files
   - Generate Prisma client
