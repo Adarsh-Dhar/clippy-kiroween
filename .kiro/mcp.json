@@ -1,0 +1,10 @@
+{
+    "mcpServers": {
+      "clippy-ghost": {
+        "command": "node",
+        "args": ["./clippy-mcp-server/index.js"],
+        "disabled": false,
+        "autoApprove": ["play_system_sound"] 
+      }
+    }
+  }

@@ -12,11 +12,13 @@
     "test": "vitest --run"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.24.2",
     "@supabase/supabase-js": "^2.57.4",
     "clippyjs": "^0.0.3",
     "lucide-react": "^0.344.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.1",

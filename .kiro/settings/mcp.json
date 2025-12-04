@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "clippy-purgatory": {
+      "command": "node",
+      "args": ["mcp-server/index.js"],
+      "env": {},
+      "disabled": false,
+      "autoApprove": [
+        "get_clippy_state",
+        "list_hooks",
+        "play_system_sound"
+      ],
+      "description": "Clippy's Code Purgatory MCP Server - Manages game state, hooks, and punishments"
+    }
+  }
+}

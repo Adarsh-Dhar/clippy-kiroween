@@ -1,0 +1,89 @@
+{
+  "hooks": [
+    {
+      "name": "Spooky Pre-Commit Format",
+      "event": "git:pre-commit",
+      "command": "node .kiro/hooks/pre-commit.js",
+      "description": "Forces code formatting so Clippy doesn't have to look at ugly indentation.",
+      "enabled": true
+    },
+    {
+      "name": "Commit Message Validator",
+      "event": "git:commit-msg",
+      "command": "node .kiro/hooks/commit-msg-validator.js",
+      "description": "Validates commit message format and quality.",
+      "enabled": true
+    },
+    {
+      "name": "Lint Staged Files",
+      "event": "git:pre-commit",
+      "command": "node .kiro/hooks/lint-staged.js",
+      "description": "Lints and auto-fixes staged files before commit.",
+      "enabled": true
+    },
+    {
+      "name": "Branch Name Checker",
+      "event": "git:pre-commit",
+      "command": "node .kiro/hooks/check-branch-name.js",
+      "description": "Validates branch naming conventions.",
+      "enabled": true
+    },
+    {
+      "name": "Roast After Lint",
+      "event": "editor:save",
+      "pattern": "**/*.{js,ts,jsx,tsx}",
+      "command": "node .kiro/hooks/post-lint.js",
+      "description": "Analyzes the file on save and generates a passive-aggressive comment if errors exist.",
+      "enabled": true
+    },
+    {
+      "name": "Clippy Watcher",
+      "event": "file:create",
+      "command": "node .kiro/hooks/on-file-save.js",
+      "description": "Notifies the Clippy Agent when new files are created.",
+      "enabled": true
+    },
+    {
+      "name": "Pre-Build Curse Check",
+      "event": "npm:build",
+      "command": "node .kiro/hooks/pre-build.js",
+      "description": "Ensures no 'TODO' comments exist before building (Clippy hates procrastination).",
+      "enabled": true
+    },
+    {
+      "name": "Git Push Validator",
+      "event": "git:pre-push",
+      "command": "node .kiro/hooks/pre-push.js",
+      "description": "Runs tests before push and blocks if they fail.",
+      "enabled": true
+    },
+    {
+      "name": "Post-Merge Handler",
+      "event": "git:post-merge",
+      "command": "node .kiro/hooks/post-merge.js",
+      "description": "Checks for conflicts and updates dependencies after merge.",
+      "enabled": true
+    },
+    {
+      "name": "Test Runner with Roast",
+      "event": "manual",
+      "command": "node .kiro/hooks/run-tests.js",
+      "description": "Runs tests and roasts you if they fail.",
+      "enabled": true
+    },
+    {
+      "name": "Dependency Audit Nag",
+      "event": "manual",
+      "command": "node .kiro/hooks/audit-deps.js",
+      "description": "Checks for outdated dependencies and judges your choices.",
+      "enabled": true
+    },
+    {
+      "name": "Code Complexity Shame",
+      "event": "manual",
+      "command": "node .kiro/hooks/complexity-check.js",
+      "description": "Analyzes code complexity and shames you for spaghetti code.",
+      "enabled": true
+    }
+  ]
+}
