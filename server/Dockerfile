@@ -54,9 +54,7 @@ RUN mkdir -p /src/generated/prisma && \
     fi
 
 # Copy server files
-# Note: If BuildKit fails with path errors, try: docker builder prune -af
-# Then rebuild, or build with: DOCKER_BUILDKIT=0 docker build ...
-COPY server ./server
+COPY server/ ./server/
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
     rm -rf node_modules 2>/dev/null || true

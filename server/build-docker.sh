@@ -87,6 +87,11 @@ echo "📦 Attempting build with main Dockerfile..."
 echo "⏳ This may take a few minutes..."
 echo "🔍 Starting Docker build..."
 echo ""
+
+# First, try to prune BuildKit cache if there are path issues
+echo "🧹 Pruning BuildKit cache to avoid path resolution issues..."
+docker builder prune -af 2>/dev/null || true
+
 # Try with BuildKit enabled (it should handle the COPY commands better now)
 set +e  # Temporarily disable exit on error to capture build status
 docker build \
@@ -97,6 +102,19 @@ docker build \
     . 2>&1 | tee server/build.log
 BUILD_EXIT_CODE=${PIPESTATUS[0]}
 set -e  # Re-enable exit on error
+
+# If BuildKit fails with path errors, try without BuildKit
+if [ $BUILD_EXIT_CODE -ne 0 ] && grep -qi "failed to calculate checksum\|not found" server/build.log; then
+    echo ""
+    echo "⚠️  BuildKit failed with path errors, trying without BuildKit..."
+    DOCKER_BUILDKIT=0 docker build \
+        --progress=plain \
+        --no-cache \
+        -t "${IMAGE_NAME}:${TAG}" \
+        -f server/Dockerfile \
+        . 2>&1 | tee server/build.log
+    BUILD_EXIT_CODE=${PIPESTATUS[0]}
+fi
 
 if [ $BUILD_EXIT_CODE -eq 0 ]; then
     echo ""
