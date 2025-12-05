@@ -41,6 +41,13 @@ COPY tests/ ./tests/
 COPY index.js ./
 COPY .eslintrc.json ./
 
+# Create the expected Prisma client path structure
+# The server expects it at ../../src/generated/prisma/client from server/utils/
+# Since we're in /app (server dir), that resolves to /src/generated/prisma/client
+# Note: Prisma client should be pre-generated and copied during build if database features are needed
+# Otherwise, server will run in memory-only mode (graceful fallback)
+RUN mkdir -p /src/generated/prisma
+
 # Expose port 3001
 EXPOSE 3001
 

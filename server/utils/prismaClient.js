@@ -31,9 +31,11 @@ try {
     throw new Error('PrismaClient not found in generated client');
   }
 } catch (error) {
-  console.error('Failed to load Prisma client. Make sure to run "npx prisma generate" from the project root.');
-  console.error('Error:', error.message);
-  throw error;
+  console.warn('⚠️  Failed to load Prisma client. Server will run in memory-only mode.');
+  console.warn('   Error:', error.message);
+  console.warn('   Hint: Run "npx prisma generate" from the project root to enable database features.');
+  // Don't throw - allow server to continue in memory-only mode
+  PrismaClientClass = null;
 }
 
 let prisma = null;
@@ -130,6 +132,12 @@ function categorizeError(error) {
  * Initialize Prisma client with connection timeout
  */
 async function initPrisma() {
+  // If PrismaClientClass is not available, return null (memory-only mode)
+  if (!PrismaClientClass) {
+    isConnected = false;
+    return null;
+  }
+
   // If already connected, return existing client
   if (prisma && isConnected) {
     return prisma;
