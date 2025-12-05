@@ -19,7 +19,7 @@ export interface GameState {
 }
 
 export interface Punishment {
-  type: 'bsod' | 'apology' | 'jail' | 'void' | 'glitch';
+  type: 'bsod' | 'jail' | 'void' | 'glitch';
   message?: string;
   timestamp: number;
   angerLevel: number;

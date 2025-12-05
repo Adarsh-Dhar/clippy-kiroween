@@ -32,13 +32,22 @@ export const useKeyboardShortcuts = () => {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Always allow arrow keys to work normally for cursor movement
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        return;
+      }
+
       // Only handle shortcuts when not in an input/textarea (unless it's the editor)
       const target = e.target as HTMLElement;
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
       const isEditor = target.tagName === 'TEXTAREA' && target.closest('.editor-area');
       
-      // Allow shortcuts in editor, but not in dialogs
-      if (isInput && !isEditor && !target.closest('.find-replace-dialog')) {
+      // Don't interfere with inputs in dialogs or modals (find/replace, etc.)
+      if (isInput && !isEditor) {
+        // Allow all input in dialogs and modals
+        if (target.closest('.find-replace-dialog') || target.closest('[class*="modal"]')) {
+          return;
+        }
         return;
       }
 

@@ -130,7 +130,7 @@ body,
   overflow: visible !important;
 }
 
-/* Apology Modal animations */
+/* Modal animations */
 @keyframes fadeIn {
   from {
     opacity: 0;

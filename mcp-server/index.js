@@ -303,7 +303,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           properties: {
             type: { 
               type: "string", 
-              enum: ["bsod", "apology", "jail", "void", "glitch"],
+              enum: ["bsod", "jail", "void", "glitch"],
               description: "Type of punishment to trigger"
             },
             message: { type: "string", description: "Custom message for the punishment" },

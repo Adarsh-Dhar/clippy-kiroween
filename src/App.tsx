@@ -9,7 +9,6 @@ import { FakeTerminal } from './components/FakeTerminal';
 import { ClippyJail } from './components/ClippyJail';
 import { TheVoid } from './components/TheVoid';
 import { BSOD } from './components/BSOD';
-import { ApologyModal } from './components/ApologyModal';
 import { gameStateService } from './services/gameStateService';
 
 function EditorWrapper() {
@@ -56,9 +55,8 @@ function EditorContent() {
         const punishment = await gameStateService.getPunishment();
         if (punishment) {
           // Map punishment type to our PunishmentType
-          const typeMap: Record<string, 'bsod' | 'apology' | 'jail' | 'void' | null> = {
+          const typeMap: Record<string, 'bsod' | 'jail' | 'void' | null> = {
             bsod: 'bsod',
-            apology: 'apology',
             jail: 'jail',
             void: 'void',
             glitch: 'jail', // Map glitch to jail for now
@@ -128,17 +126,6 @@ function EditorContent() {
     setPunishmentType(null);
   };
 
-  const handleApologyAccepted = () => {
-    // Reset execution state when apology is accepted
-    setExecutionState('idle');
-    setPunishmentType(null);
-  };
-
-  const handleApologyTimeout = () => {
-    // Handle timeout - could trigger crash or just reset
-    setExecutionState('idle');
-    setPunishmentType(null);
-  };
 
   let bgColor = 'bg-win95-teal';
   let bgHex = '#008080';
@@ -170,14 +157,6 @@ function EditorContent() {
       
       {executionState === 'success' && (
         <FakeTerminal isOpen={true} onComplete={handleSuccessComplete} />
-      )}
-      
-      {executionState === 'punishment' && punishmentType === 'apology' && (
-        <ApologyModal 
-          isOpen={true} 
-          onApologyAccepted={handleApologyAccepted}
-          onTimeout={handleApologyTimeout}
-        />
       )}
       
       {executionState === 'punishment' && punishmentType === 'bsod' && (

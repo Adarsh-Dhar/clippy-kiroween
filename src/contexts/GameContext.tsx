@@ -3,7 +3,7 @@ import { memoryService } from '../services/memoryService';
 import { gameStateService } from '../services/gameStateService';
 
 export type ExecutionState = 'idle' | 'validating' | 'success' | 'punishment';
-export type PunishmentType = 'bsod' | 'apology' | 'jail' | 'void' | null;
+export type PunishmentType = 'bsod' | 'jail' | 'void' | null;
 
 export interface GameContextType {
   gameState: 'PLAYING' | 'CRASHED';

@@ -4,7 +4,7 @@ import { lintCode } from '../utils/lintingService';
 
 export interface UseExecutionReturn {
   executionState: 'idle' | 'validating' | 'success' | 'punishment';
-  punishmentType: 'bsod' | 'apology' | 'jail' | 'void' | null;
+  punishmentType: 'bsod' | 'jail' | 'void' | null;
   execute: (code: string, language: string) => Promise<void>;
   resetExecution: () => void;
 }
@@ -44,20 +44,17 @@ export const useExecution = (): UseExecutionReturn => {
           // Has errors - trigger punishment roulette
           setExecutionState('punishment');
 
-          // Random punishment selection (0-3)
-          const randomPunishment = Math.floor(Math.random() * 4);
+          // Random punishment selection (0-2)
+          const randomPunishment = Math.floor(Math.random() * 3);
           
           switch (randomPunishment) {
             case 0:
               setPunishmentType('bsod');
               break;
             case 1:
-              setPunishmentType('apology');
-              break;
-            case 2:
               setPunishmentType('jail');
               break;
-            case 3:
+            case 2:
               setPunishmentType('void');
               break;
             default:
