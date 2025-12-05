@@ -59,12 +59,19 @@ WORKDIR /app/server
 RUN npm install
 
 # Copy server source code
-# Copy all server files except node_modules and package files (already copied)
+# Switch back to /app to copy files
 WORKDIR /app
-COPY server/ ./server/
-# Remove node_modules and package files that were copied (we install separately)
-RUN cd ./server && \
-    rm -rf node_modules package-lock.json pnpm-lock.yaml 2>/dev/null || true
+# Ensure destination directories exist
+RUN mkdir -p ./server/routes ./server/services ./server/utils ./server/parsers ./server/tests
+# Copy server files
+COPY server/routes/ ./server/routes/
+COPY server/services/ ./server/services/
+COPY server/utils/ ./server/utils/
+COPY server/parsers/ ./server/parsers/
+COPY server/tests/ ./server/tests/
+COPY server/index.js ./server/index.js
+# Copy .eslintrc.json explicitly (hidden file) - use JSON array syntax for paths with dots
+COPY ["server/.eslintrc.json", "./server/.eslintrc.json"]
 WORKDIR /app/server
 
 # Expose port 3001
