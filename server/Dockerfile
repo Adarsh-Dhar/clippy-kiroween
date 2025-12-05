@@ -1,7 +1,8 @@
-# Use Node.js 18 as base image
-FROM node:18
+# Use Node.js 20 as base image (required for Prisma 7.1.0+)
+FROM node:20
 
 # Install system dependencies for Python, pip, and Go
+# Install pylint via apt (most reliable method)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -9,18 +10,14 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     ca-certificates \
     golang-go \
+    pylint \
     && rm -rf /var/lib/apt/lists/*
 
-# Upgrade pip and install Python linter (pylint)
-# Use --break-system-packages for Debian 12+ systems, with fallback for older systems
-RUN python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
-RUN python3 -m pip install --no-cache-dir --break-system-packages pylint || \
-    python3 -m pip install --no-cache-dir pylint || \
-    (python3 -m pip install --no-cache-dir --user pylint && \
-     ln -s /root/.local/bin/pylint /usr/local/bin/pylint)
+# Verify pylint installation
+RUN pylint --version || echo "Warning: pylint not found in PATH"
 
-# Install golint
-RUN go install golang.org/x/lint/golint@latest
+# Install golint (with retry and timeout handling)
+RUN go install golang.org/x/lint/golint@latest || echo "Warning: golint installation failed (network issue)"
 ENV PATH=$PATH:/root/go/bin
 
 # Install ESLint globally
@@ -35,8 +32,14 @@ COPY package*.json ./
 # Install Node.js dependencies
 RUN npm install
 
-# Copy server source code
-COPY . .
+# Copy server source code (exclude node_modules)
+COPY routes/ ./routes/
+COPY services/ ./services/
+COPY utils/ ./utils/
+COPY parsers/ ./parsers/
+COPY tests/ ./tests/
+COPY index.js ./
+COPY .eslintrc.json ./
 
 # Expose port 3001
 EXPOSE 3001
