@@ -53,9 +53,13 @@ RUN mkdir -p /src/generated/prisma && \
       echo "Warning: Prisma client not found in expected locations"; \
     fi
 
-# Copy all server files at once
-# Ensure server directory is copied correctly
-COPY server/ ./server/
+# Copy server files explicitly to avoid BuildKit path resolution issues
+COPY server/package.json server/package-lock.json* ./server/
+COPY server/index.js ./server/
+COPY server/parsers ./server/parsers
+COPY server/routes ./server/routes
+COPY server/services ./server/services
+COPY server/utils ./server/utils
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
     rm -rf node_modules 2>/dev/null || true
