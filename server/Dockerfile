@@ -5,12 +5,19 @@ FROM node:18
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
+    python3-dev \
+    build-essential \
+    ca-certificates \
     golang-go \
     && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip and install Python linter (pylint)
-RUN python3 -m pip install --upgrade pip && \
-    python3 -m pip install --no-cache-dir pylint
+# Use --break-system-packages for Debian 12+ systems, with fallback for older systems
+RUN python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
+RUN python3 -m pip install --no-cache-dir --break-system-packages pylint || \
+    python3 -m pip install --no-cache-dir pylint || \
+    (python3 -m pip install --no-cache-dir --user pylint && \
+     ln -s /root/.local/bin/pylint /usr/local/bin/pylint)
 
 # Install golint
 RUN go install golang.org/x/lint/golint@latest
