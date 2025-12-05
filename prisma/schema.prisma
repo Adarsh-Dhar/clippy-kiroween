@@ -1,10 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Clippy's Eternal Memory System
-// "I remember everything. Every. Single. Mistake."
-// The Great Deletion of 2007 will never happen again.
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -14,103 +7,85 @@ datasource db {
   provider = "postgresql"
 }
 
-// User profile - root entity for all memory data
 model User {
-  id            String   @id @default(uuid())
-  userId        String   @unique // Client-generated UUID for cross-device sync
-  createdAt     DateTime @default(now())
-  lastUpdated   DateTime @updatedAt
-  
-  // Relations - Clippy's grudge collection
-  mistakes      MistakeRecord[]
-  patterns      CodePattern[]
-  interactions  InteractionRecord[]
-  angerEvents   AngerEvent[]
-  angerStats    AngerStats?
-  
+  id           String              @id @default(uuid())
+  userId       String              @unique
+  createdAt    DateTime            @default(now())
+  lastUpdated  DateTime            @updatedAt
+  angerEvents  AngerEvent[]
+  angerStats   AngerStats?
+  patterns     CodePattern[]
+  interactions InteractionRecord[]
+  mistakes     MistakeRecord[]
+
   @@index([userId])
 }
 
-// Mistake tracking - The Hall of Shame
 model MistakeRecord {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  errorType   String   // e.g., "missing-semicolon", "undefined-variable"
-  message     String   // Human-readable error message
-  file        String   // File path where the sin was committed
-  line        Int      // Line number of the offense
-  timestamp   DateTime @default(now())
-  count       Int      @default(1) // How many times you've made this exact mistake
-  
+  id        String   @id @default(uuid())
+  userId    String
+  errorType String
+  message   String
+  file      String
+  line      Int
+  timestamp DateTime @default(now())
+  count     Int      @default(1)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, errorType])
   @@index([userId, timestamp])
   @@index([userId, file, line])
 }
 
-// Code pattern recognition - Your coding "style" (if we can call it that)
 model CodePattern {
   id          String   @id @default(uuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  name        String   // e.g., "camelCase-naming", "no-semicolons"
-  description String   // Human-readable description
-  frequency   Int      // Percentage (0-100) of how often you use this pattern
+  name        String
+  description String
+  frequency   Int
   lastSeen    DateTime @default(now())
-  examples    String[] // Sample code snippets demonstrating the pattern
-  
+  examples    String[]
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, name])
   @@index([userId, frequency])
   @@index([userId, lastSeen])
 }
 
-// Interaction history - Every roast, every warning, every moment of judgment
 model InteractionRecord {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  type        String   // 'roast' | 'compliment' | 'help' | 'warning' | 'punishment'
-  message     String   // What Clippy said to you
-  timestamp   DateTime @default(now())
-  
-  // Optional context - The circumstances of your failure
-  angerLevel  Int?     // Clippy's anger level at the time
-  errorCount  Int?     // How many errors you had
-  
+  id         String   @id @default(uuid())
+  userId     String
+  type       String
+  message    String
+  timestamp  DateTime @default(now())
+  angerLevel Int?
+  errorCount Int?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, type])
   @@index([userId, timestamp])
 }
 
-// Anger level tracking - The path to BSOD
 model AngerEvent {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  level       Int      // 0-5 (5 = BSOD / Fatal Exception)
-  timestamp   DateTime @default(now())
-  trigger     String?  // What caused the anger spike
-  
+  id        String   @id @default(uuid())
+  userId    String
+  level     Int
+  timestamp DateTime @default(now())
+  trigger   String?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId, level])
   @@index([userId, timestamp])
 }
 
-// Anger statistics - Your permanent record
 model AngerStats {
-  id              String   @id @default(uuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  totalDeaths     Int      @default(0) // Number of BSODs triggered
-  highestLevel    Int      @default(0) // Peak anger achieved
-  averageLevel    Float    @default(0) // Average anger across all sessions
-  
-  // Stored as JSON objects for flexibility
-  levelCounts     Json     // { "0": 10, "1": 5, "2": 3, "3": 2, "4": 1, "5": 0 }
-  timeAtLevel     Json     // { "0": 50000, "1": 30000, ... } in milliseconds
-  
-  updatedAt       DateTime @updatedAt
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  totalDeaths  Int      @default(0)
+  highestLevel Int      @default(0)
+  averageLevel Float    @default(0)
+  levelCounts  Json
+  timeAtLevel  Json
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -41,7 +41,8 @@ try {
 let prisma = null;
 let isConnected = false;
 let lastError = null;
-const CONNECTION_TIMEOUT = 2000; // 2 seconds
+// Increased timeout for production (Neon may need more time for initial connection)
+const CONNECTION_TIMEOUT = process.env.NODE_ENV === 'production' ? 10000 : 2000; // 10s production, 2s development
 
 /**
  * Check if DATABASE_URL is set
@@ -171,9 +172,22 @@ async function initPrisma() {
   if (!prisma) {
     try {
       // Create PostgreSQL pool for the adapter
-      const pool = new Pool({
+      // Enhanced configuration for production (Neon database)
+      const poolConfig = {
         connectionString: process.env.DATABASE_URL,
-      });
+        // Connection pool settings optimized for Neon
+        max: process.env.DATABASE_POOL_MAX ? parseInt(process.env.DATABASE_POOL_MAX) : 10,
+        min: process.env.DATABASE_POOL_MIN ? parseInt(process.env.DATABASE_POOL_MIN) : 2,
+        // Connection timeout (in milliseconds)
+        connectionTimeoutMillis: process.env.NODE_ENV === 'production' ? 10000 : 5000,
+        // Idle timeout - close idle clients after 30 seconds
+        idleTimeoutMillis: 30000,
+        // SSL is handled by connection string parameters (sslmode=require)
+        // But we can also set it explicitly if needed
+        ssl: process.env.DATABASE_URL?.includes('sslmode=require') ? { rejectUnauthorized: true } : undefined,
+      };
+      
+      const pool = new Pool(poolConfig);
       
       // Create Prisma adapter
       const adapter = new PrismaPg(pool);
