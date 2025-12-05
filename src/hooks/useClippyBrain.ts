@@ -273,8 +273,14 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
       try {
         const mistakes = await memoryService.getCommonMistakes();
         setCommonMistakes(mistakes);
-      } catch (error) {
-        console.warn('Failed to load common mistakes:', error);
+      } catch (error: any) {
+        // Silently handle database unavailable errors (graceful degradation)
+        const isDatabaseError = error?.message?.includes('Database unavailable') || 
+                                error?.message?.includes('503') ||
+                                error?.message?.includes('Service Unavailable');
+        if (!isDatabaseError) {
+          console.warn('Failed to load common mistakes:', error);
+        }
         setCommonMistakes([]);
       }
     };

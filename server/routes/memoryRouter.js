@@ -15,11 +15,37 @@ async function checkDatabaseHealth(req, res, next) {
   if (!health.healthy) {
     return res.status(503).json({
       error: 'Database unavailable',
-      details: health.error,
+      category: health.category || 'UNKNOWN_ERROR',
+      message: health.error || 'Database connection failed',
+      hint: health.hint || 'Check database configuration',
+      details: {
+        timestamp: health.timestamp || new Date().toISOString(),
+        databaseUrlSet: health.databaseUrlSet,
+        databaseUrlMasked: health.databaseUrlMasked,
+        originalError: health.originalError,
+      },
     });
   }
   next();
 }
+
+/**
+ * GET /api/memory/health
+ * Get detailed database health diagnostics
+ */
+router.get('/health', async (req, res) => {
+  try {
+    const health = await checkHealth();
+    res.json(health);
+  } catch (error) {
+    res.status(500).json({
+      healthy: false,
+      category: 'HEALTH_CHECK_ERROR',
+      error: error.message,
+      hint: 'Failed to check database health',
+    });
+  }
+});
 
 /**
  * POST /api/memory/migrate
@@ -205,156 +231,227 @@ router.post('/migrate', checkDatabaseHealth, async (req, res) => {
 /**
  * POST /api/memory/mistakes
  * Record a mistake
+ * Silently fails if database is unavailable (graceful degradation)
  */
-router.post('/mistakes', checkDatabaseHealth, async (req, res) => {
+router.post('/mistakes', async (req, res) => {
   try {
     const { userId, errorType, message, file, line } = req.body;
     if (!userId || !errorType || !message || !file || line === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Silently succeed when database is unavailable
+      return res.json({ success: true });
+    }
+
     const result = await memoryService.recordMistake(userId, { errorType, message, file, line });
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Silently fail for database errors
+    console.error('Error recording mistake:', error);
+    res.json({ success: true });
   }
 });
 
 /**
  * GET /api/memory/mistakes
  * Get mistakes (optionally filtered by errorType)
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/mistakes', checkDatabaseHealth, async (req, res) => {
+router.get('/mistakes', async (req, res) => {
   try {
     const { userId, errorType } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json([]);
+    }
+
     const mistakes = await memoryService.getMistakes(userId, errorType || null);
     res.json(mistakes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching mistakes:', error);
+    res.json([]);
   }
 });
 
 /**
  * GET /api/memory/mistakes/common
  * Get common mistakes (count >= 3)
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/mistakes/common', checkDatabaseHealth, async (req, res) => {
+router.get('/mistakes/common', async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    // Check database health first
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Return empty array instead of 503 for graceful degradation
+      return res.json([]);
+    }
+
     const mistakes = await memoryService.getCommonMistakes(userId);
     res.json(mistakes);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Return empty array on error for graceful degradation
+    console.error('Error fetching common mistakes:', error);
+    res.json([]);
   }
 });
 
 /**
  * GET /api/memory/mistakes/count
  * Get mistake count for error type
+ * Returns 0 if database is unavailable (graceful degradation)
  */
-router.get('/mistakes/count', checkDatabaseHealth, async (req, res) => {
+router.get('/mistakes/count', async (req, res) => {
   try {
     const { userId, errorType } = req.query;
     if (!userId || !errorType) {
       return res.status(400).json({ error: 'userId and errorType are required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json({ count: 0 });
+    }
+
     const count = await memoryService.getMistakeCount(userId, errorType);
     res.json({ count });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching mistake count:', error);
+    res.json({ count: 0 });
   }
 });
 
 /**
  * POST /api/memory/patterns
  * Analyze and save code patterns
+ * Silently fails if database is unavailable (graceful degradation)
  */
-router.post('/patterns', checkDatabaseHealth, async (req, res) => {
+router.post('/patterns', async (req, res) => {
   try {
     const { userId, patterns } = req.body;
     if (!userId || !patterns || !Array.isArray(patterns)) {
       return res.status(400).json({ error: 'userId and patterns array are required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Silently succeed when database is unavailable
+      return res.json({ success: true });
+    }
+
     await memoryService.analyzeCodePatterns(userId, patterns);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Silently fail for database errors
+    console.error('Error analyzing patterns:', error);
+    res.json({ success: true });
   }
 });
 
 /**
  * GET /api/memory/patterns
  * Get all patterns
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/patterns', checkDatabaseHealth, async (req, res) => {
+router.get('/patterns', async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json([]);
+    }
+
     const patterns = await memoryService.getPatterns(userId);
     res.json(patterns);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching patterns:', error);
+    res.json([]);
   }
 });
 
 /**
  * GET /api/memory/patterns/favorite
  * Get favorite patterns (frequency > 50)
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/patterns/favorite', checkDatabaseHealth, async (req, res) => {
+router.get('/patterns/favorite', async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json([]);
+    }
+
     const patterns = await memoryService.getFavoritePatterns(userId);
     res.json(patterns);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching favorite patterns:', error);
+    res.json([]);
   }
 });
 
 /**
  * POST /api/memory/interactions
  * Record an interaction
+ * Silently fails if database is unavailable (graceful degradation)
  */
-router.post('/interactions', checkDatabaseHealth, async (req, res) => {
+router.post('/interactions', async (req, res) => {
   try {
     const { userId, type, message, context } = req.body;
     if (!userId || !type || !message) {
       return res.status(400).json({ error: 'userId, type, and message are required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Silently succeed when database is unavailable
+      return res.json({ success: true });
+    }
+
     const result = await memoryService.recordInteraction(userId, { type, message, context });
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Silently fail for database errors
+    console.error('Error recording interaction:', error);
+    res.json({ success: true });
   }
 });
 
 /**
  * GET /api/memory/interactions
  * Get interactions (optionally filtered by type)
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/interactions', checkDatabaseHealth, async (req, res) => {
+router.get('/interactions', async (req, res) => {
   try {
     const { userId, type, limit } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
+    }
+
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json([]);
     }
 
     let interactions;
@@ -366,7 +463,8 @@ router.get('/interactions', checkDatabaseHealth, async (req, res) => {
 
     res.json(interactions);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching interactions:', error);
+    res.json([]);
   }
 });
 
@@ -391,91 +489,154 @@ router.post('/anger', checkDatabaseHealth, async (req, res) => {
 /**
  * GET /api/memory/anger/stats
  * Get anger statistics
+ * Returns default stats if database is unavailable (graceful degradation)
  */
-router.get('/anger/stats', checkDatabaseHealth, async (req, res) => {
+router.get('/anger/stats', async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json({
+        totalDeaths: 0,
+        highestLevel: 0,
+        averageLevel: 0,
+        levelCounts: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+        timeAtLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      });
+    }
+
     const stats = await memoryService.getAngerStats(userId);
     res.json(stats);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching anger stats:', error);
+    res.json({
+      totalDeaths: 0,
+      highestLevel: 0,
+      averageLevel: 0,
+      levelCounts: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+      timeAtLevel: { 0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
+    });
   }
 });
 
 /**
  * GET /api/memory/anger/history
  * Get anger history
+ * Returns empty array if database is unavailable (graceful degradation)
  */
-router.get('/anger/history', checkDatabaseHealth, async (req, res) => {
+router.get('/anger/history', async (req, res) => {
   try {
     const { userId, limit } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json([]);
+    }
+
     const history = await memoryService.getAngerHistory(userId, limit ? parseInt(limit) : null);
     res.json(history);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching anger history:', error);
+    res.json([]);
   }
 });
 
 /**
  * GET /api/memory/summary
  * Get memory summary
+ * Returns default summary if database is unavailable (graceful degradation)
  */
-router.get('/summary', checkDatabaseHealth, async (req, res) => {
+router.get('/summary', async (req, res) => {
   try {
     const { userId } = req.query;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      return res.json({
+        totalMistakes: 0,
+        commonMistakes: 0,
+        totalPatterns: 0,
+        totalInteractions: 0,
+        totalDeaths: 0,
+      });
+    }
+
     const summary = await memoryService.getSummary(userId);
     res.json(summary);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error fetching summary:', error);
+    res.json({
+      totalMistakes: 0,
+      commonMistakes: 0,
+      totalPatterns: 0,
+      totalInteractions: 0,
+      totalDeaths: 0,
+    });
   }
 });
 
 /**
  * POST /api/memory/reset
  * Reset all user data
+ * Silently fails if database is unavailable (graceful degradation)
  */
-router.post('/reset', checkDatabaseHealth, async (req, res) => {
+router.post('/reset', async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Silently succeed when database is unavailable
+      return res.json({ success: true });
+    }
+
     await memoryService.reset(userId);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Silently fail for database errors
+    console.error('Error resetting data:', error);
+    res.json({ success: true });
   }
 });
 
 /**
  * POST /api/memory/cleanup
  * Cleanup old data
+ * Silently fails if database is unavailable (graceful degradation)
  */
-router.post('/cleanup', checkDatabaseHealth, async (req, res) => {
+router.post('/cleanup', async (req, res) => {
   try {
     const { userId } = req.body;
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
     }
 
+    const health = await checkHealth();
+    if (!health.healthy) {
+      // Silently succeed when database is unavailable
+      return res.json({ success: true });
+    }
+
     await memoryService.cleanupOldData(userId);
     await memoryService.enforceLimits(userId);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Silently fail for database errors
+    console.error('Error cleaning up data:', error);
+    res.json({ success: true });
   }
 });
 

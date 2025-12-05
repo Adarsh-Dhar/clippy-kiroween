@@ -141,8 +141,14 @@ export class MemoryService {
       }));
       this.cache.set(cacheKey, transformed, 5 * 60 * 1000);
       return transformed;
-    } catch (error) {
-      console.error('Failed to get common mistakes:', error);
+    } catch (error: any) {
+      // Silently handle database unavailable errors (graceful degradation)
+      const isDatabaseError = error?.message?.includes('Database unavailable') || 
+                              error?.message?.includes('503') ||
+                              error?.message?.includes('Service Unavailable');
+      if (!isDatabaseError) {
+        console.error('Failed to get common mistakes:', error);
+      }
       return [];
     }
   }

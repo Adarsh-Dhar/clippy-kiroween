@@ -54,9 +54,14 @@ export const TheVoid = ({ isOpen, onEscape }: TheVoidProps) => {
           clearInterval(fadeOut);
           if (audioRef.current) {
             audioRef.current.pause();
+            audioRef.current = null;
           }
         }
       }, 50);
+      
+      // Store interval reference for cleanup if component unmounts during fade
+      // Note: This is a local variable, but the interval will clear itself when done
+      // If component unmounts, the useEffect cleanup will handle audioRef.current
     }
 
     onEscape();

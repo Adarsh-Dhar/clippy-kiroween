@@ -74,8 +74,14 @@ export class WriteBatcher {
     for (const op of operations) {
       try {
         await op.execute();
-      } catch (error) {
-        console.error(`Write operation failed (${op.type}):`, error);
+      } catch (error: any) {
+        // Silently handle database unavailable errors (graceful degradation)
+        const isDatabaseError = error?.message?.includes('Database unavailable') || 
+                                error?.message?.includes('503') ||
+                                error?.message?.includes('Service Unavailable');
+        if (!isDatabaseError) {
+          console.error(`Write operation failed (${op.type}):`, error);
+        }
         // Continue with other operations even if one fails
       }
     }

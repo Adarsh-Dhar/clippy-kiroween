@@ -373,7 +373,7 @@ export const ClippyAgent = ({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [code, speak, playAnimation, playSound]);
+  }, [code, activeFile, speak, playAnimation, playSound]);
 
   const handleWriteClick = () => {
     // Show speech bubble with dynamic duration

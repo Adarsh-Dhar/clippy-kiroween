@@ -91,16 +91,8 @@ function EditorContent() {
   };
 
   const handleSuccessComplete = () => {
-    // Trigger Clippy congratulate animation
-    try {
-      const clippyAgent = (window as any).clippy;
-      if (clippyAgent) {
-        clippyAgent.play('Congratulate');
-      }
-    } catch (error) {
-      console.warn('Could not trigger Clippy animation:', error);
-    }
-    
+    // Success animation is automatically handled by useClippyBrain hook
+    // when errorCount transitions from >0 to 0
     // Reset to idle after success animation completes
     setExecutionState('idle');
   };
