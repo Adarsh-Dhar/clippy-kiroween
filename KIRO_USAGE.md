@@ -98,7 +98,7 @@ Specs provide a structured workflow:
 
 ### Specs Created
 
-We built **8 major features** using specs:
+We built **10 major features** using specs:
 
 | Spec | Complexity | Lines of Code | Development Time |
 |------|------------|---------------|------------------|
@@ -110,6 +110,8 @@ We built **8 major features** using specs:
 | execution-shenanigan-roulette | Medium | ~400 | 2 hours |
 | retro-file-system | High | ~900 | 3 hours |
 | clippy-memory-system | High | ~700 | 2.5 hours |
+| clippy-ghost-mcp-server | Medium | ~800 | 2 hours |
+| persistent-memory-migration | Low | ~200 | 1 hour |
 
 
 ### Case Study: Advanced Clippy Behavior Spec
@@ -726,7 +728,7 @@ Model Context Protocol (MCP) allows AI agents to interact with external systems 
 
 ### MCP Server Implementation
 
-**Created**: `mcp-server/index.js` with 15 tools
+**Created**: `mcp-server/index.js` with 13 tools
 
 #### Game State Tools (4)
 - `get_clippy_state`: Read anger level and mood
@@ -746,6 +748,10 @@ Model Context Protocol (MCP) allows AI agents to interact with external systems 
 - `trigger_punishment`: Trigger BSOD, jail, void, glitch
 - `haunt_desktop`: Create spooky files on desktop
 - `play_system_sound`: Play error/success sounds
+
+#### Utility Tools (2)
+- `read_project_context`: Read file structure for analysis
+- `manage_memory`: Read/write persistent memory data
 
 
 ### MCP Use Cases
@@ -1113,9 +1119,9 @@ Model Context Protocol (MCP) allows AI agents to interact with external systems 
 - MCP Server: ~800 lines
 
 **Features Delivered**: 25+ major features
-- 8 spec-driven features
+- 10 spec-driven features
 - 12 automated hooks
-- 15 MCP tools
+- 13 MCP tools
 - 4 steering files
 - Multiple UI components
 
@@ -1236,9 +1242,9 @@ Model Context Protocol (MCP) allows AI agents to interact with external systems 
 - AI-powered code analysis and roasting
 - 12 automated hooks integrated into Git/editor workflow
 - Consistent personality across all interactions
-- MCP integration for AI agent control
+- MCP integration for AI agent control (13 tools)
 - Shared game state coordinating CLI, AI, and UI
-- 8 major features built with spec-driven development
+- 10 major features built with spec-driven development
 - Dozens of components built with vibe coding
 
 ### How Kiro Made It Possible
@@ -1301,9 +1307,9 @@ MCP Server (Node.js): 800 lines
 ### Feature Breakdown
 
 ```
-Specs Created: 8
+Specs Created: 10
 Hooks Implemented: 12
-MCP Tools: 15
+MCP Tools: 13
 Steering Files: 4
 UI Components: 25+
 API Endpoints: 3
@@ -1358,6 +1364,12 @@ Automation Success: 90%+ (hooks work reliably)
 - `.kiro/specs/linting-server-backend/` - Backend API
 - `.kiro/specs/advanced-clippy-behavior/` - Behavior engine
 - `.kiro/specs/clippy-memory-system/` - Persistent memory
+- `.kiro/specs/clippy-ghost-mcp-server/` - MCP server implementation
+- `.kiro/specs/persistent-memory-migration/` - Database migration system
+- `.kiro/specs/execution-shenanigan-roulette/` - Code execution effects
+- `.kiro/specs/retro-file-system/` - Windows 95 file system UI
+- `.kiro/specs/voice-apology-system/` - Voice recognition and apologies
+- `.kiro/specs/positive-reinforcement/` - Positive feedback system
 
 
 ### Hooks
@@ -1373,7 +1385,8 @@ Automation Success: 90%+ (hooks work reliably)
 - `.kiro/steering/error-handling-strategy.md` - Anger system
 
 ### MCP
-- `mcp-server/index.js` - MCP server implementation
+- `mcp-server/index.js` - MCP server implementation (13 tools)
+- `mcp-server/README.md` - MCP server documentation
 - `.kiro/settings/mcp.json` - MCP configuration
 
 ### Documentation

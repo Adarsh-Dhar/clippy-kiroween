@@ -54,7 +54,9 @@ node mcp-server/index.js
 
 ## Available Tools
 
-### Game State Tools
+The MCP server provides **13 tools** organized into 5 categories:
+
+### Game State Tools (4 tools)
 
 #### `get_clippy_state`
 Get Clippy's current anger level, mood, and error count.
@@ -93,7 +95,7 @@ Increase Clippy's anger by a specified amount.
 
 **Parameters**:
 - `amount` (number, 1-5): Amount to increase
-- `eventType` (string): Type of event causing anger
+- `eventType` (string, required): Type of event causing anger
 
 **Example**:
 ```json
@@ -108,7 +110,7 @@ Reset anger level and error count to 0.
 
 **Parameters**: None
 
-### Hook Management Tools
+### Hook Management Tools (3 tools)
 
 #### `list_hooks`
 List all configured hooks with their status.
@@ -121,8 +123,8 @@ List all configured hooks with their status.
 Enable or disable a specific hook.
 
 **Parameters**:
-- `hookName` (string): Name of the hook
-- `enabled` (boolean): Whether to enable or disable
+- `hookName` (string, required): Name of the hook
+- `enabled` (boolean, required): Whether to enable or disable
 
 **Example**:
 ```json
@@ -136,7 +138,7 @@ Enable or disable a specific hook.
 Manually execute a hook script.
 
 **Parameters**:
-- `hookName` (string): Name of the hook to run
+- `hookName` (string, required): Name of the hook to run
 - `args` (array, optional): Arguments to pass to the hook
 
 **Example**:
@@ -147,13 +149,13 @@ Manually execute a hook script.
 }
 ```
 
-### Code Analysis Tools
+### Code Analysis Tools (1 tool)
 
 #### `analyze_code_quality`
 Run various code quality checks.
 
 **Parameters**:
-- `checks` (array): Which checks to run
+- `checks` (array, required): Which checks to run
   - `"complexity"`: Analyze code complexity
   - `"tests"`: Run test suite
   - `"dependencies"`: Audit dependencies
@@ -166,13 +168,13 @@ Run various code quality checks.
 }
 ```
 
-### Punishment Tools
+### Punishment Tools (3 tools)
 
 #### `trigger_punishment`
 Trigger a specific punishment effect.
 
 **Parameters**:
-- `type` (string): Type of punishment
+- `type` (string, required): Type of punishment
   - `"bsod"`: Blue Screen of Death
   - `"apology"`: Force apology modal
   - `"jail"`: Clippy jail
@@ -192,8 +194,8 @@ Trigger a specific punishment effect.
 Create a spooky file on the user's desktop.
 
 **Parameters**:
-- `filename` (string): Name of the file
-- `message` (string): Content to write
+- `filename` (string, required): Name of the file
+- `message` (string, optional): Content to write (alias: `content`)
 
 **Example**:
 ```json
@@ -204,13 +206,61 @@ Create a spooky file on the user's desktop.
 ```
 
 #### `play_system_sound`
-Play a system sound effect.
+Play a system sound effect. Supports Windows, macOS, and Linux.
 
 **Parameters**:
-- `sound` (string): Type of sound
-  - `"beep"`: Simple beep
+- `sound` (string, optional): Type of sound
+  - `"beep"`: Simple beep (maps to success)
   - `"error"`: Error sound
-  - `"tada"`: Success sound
+  - `"tada"`: Success sound (maps to success)
+- `type` (string, optional): Type of system sound
+  - `"error"`: Error sound
+  - `"warning"`: Warning sound
+  - `"success"`: Success sound
+
+**Note**: Either `sound` or `type` can be used. `sound` takes precedence.
+
+### Utility Tools (2 tools)
+
+#### `read_project_context`
+Read the user's file structure to generate specific insults or analyze project structure.
+
+**Parameters**:
+- `directoryPath` (string, required): Absolute or relative path to directory to inspect
+
+**Returns**: Directory structure with file and folder information.
+
+**Example**:
+```json
+{
+  "directoryPath": "./src"
+}
+```
+
+#### `manage_memory`
+Read or write persistent memory data stored in `.kiro/.clippy-memory.json`.
+
+**Parameters**:
+- `action` (string, required): Operation to perform (`"read"` or `"write"`)
+- `key` (string, required): Memory key to read or write
+- `value` (string, required for write): Value to write
+
+**Example Read**:
+```json
+{
+  "action": "read",
+  "key": "user_mistakes"
+}
+```
+
+**Example Write**:
+```json
+{
+  "action": "write",
+  "key": "user_mistakes",
+  "value": "5"
+}
+```
 
 ## Integration with Hooks
 

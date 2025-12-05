@@ -41,7 +41,7 @@ Located in `steering/` - These guide AI behavior:
 
 ### Specifications
 
-Located in `specs/` - Feature design documents:
+Located in `specs/` - Feature design documents (10 specs total):
 
 - **clippy-agent/** - Main Clippy component
 - **linting-server-backend/** - Backend API
@@ -49,6 +49,10 @@ Located in `specs/` - Feature design documents:
 - **positive-reinforcement/** - Compliment system
 - **advanced-clippy-behavior/** - AI decision logic
 - **execution-shenanigan-roulette/** - Punishment system
+- **retro-file-system/** - Windows 95 file system UI
+- **clippy-memory-system/** - Persistent memory system
+- **clippy-ghost-mcp-server/** - MCP server implementation
+- **persistent-memory-migration/** - Database migration system
 
 ## 🗂️ Directory Structure
 
@@ -85,13 +89,17 @@ Located in `specs/` - Feature design documents:
 │   ├── resurrection-theme.md
 │   └── error-handling-strategy.md
 │
-├── specs/                       # Feature specifications
+├── specs/                       # Feature specifications (10 specs)
 │   ├── clippy-agent/
 │   ├── linting-server-backend/
 │   ├── voice-apology-system/
 │   ├── positive-reinforcement/
 │   ├── advanced-clippy-behavior/
-│   └── execution-shenanigan-roulette/
+│   ├── execution-shenanigan-roulette/
+│   ├── retro-file-system/
+│   ├── clippy-memory-system/
+│   ├── clippy-ghost-mcp-server/
+│   └── persistent-memory-migration/
 │
 ├── .hook-state.json             # Game state (generated)
 └── .punishment.json             # Punishment triggers (generated)
