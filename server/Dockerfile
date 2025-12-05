@@ -1,4 +1,7 @@
 # Use Node.js 20 as base image (required for Prisma 7.1.0+)
+# IMPORTANT: This Dockerfile expects to be built from the project root directory
+# Build command should be: docker build -f server/Dockerfile .
+# The build context must include: prisma/, prisma.config.ts, server/, and package.json
 FROM node:20
 
 # Install system dependencies for Python, pip, and Go
@@ -26,13 +29,14 @@ RUN npm install -g eslint
 # Set working directory
 WORKDIR /app
 
-# Copy root package.json (for Prisma dependencies)
-COPY package.json ./
-COPY package-lock.json* pnpm-lock.yaml* ./
+# Copy root package files first (for Prisma dependencies)
+COPY package.json package-lock.json* pnpm-lock.yaml* ./
 
 # Copy Prisma schema and config
-COPY prisma/ ./prisma/
-COPY prisma.config.ts ./
+# Standard COPY syntax - paths are relative to build context (project root)
+# Note: Removing trailing slashes to avoid BuildKit path resolution issues
+COPY prisma ./prisma
+COPY prisma.config.ts .
 
 # Install root dependencies (includes Prisma)
 RUN npm install
@@ -54,7 +58,9 @@ RUN mkdir -p /src/generated/prisma && \
     fi
 
 # Copy server files
-COPY server/ ./server/
+# Standard COPY syntax - paths are relative to build context (project root)
+# Note: Removing trailing slashes to avoid BuildKit path resolution issues
+COPY server ./server
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
     rm -rf node_modules 2>/dev/null || true
