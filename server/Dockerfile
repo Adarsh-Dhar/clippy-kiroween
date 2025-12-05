@@ -54,8 +54,8 @@ RUN mkdir -p /src/generated/prisma && \
     fi
 
 # Copy all server files at once
-# Using server/ syntax (with trailing slash) tells Docker to copy directory contents
-COPY server ./server
+# Ensure server directory is copied correctly
+COPY server/ ./server/
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
     rm -rf node_modules 2>/dev/null || true
