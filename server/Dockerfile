@@ -58,14 +58,14 @@ COPY server/package*.json ./server/
 WORKDIR /app/server
 RUN npm install
 
-# Copy server source code (WORKDIR is /app/server, COPY is relative to build context)
-COPY server/routes/ ./routes/
-COPY server/services/ ./services/
-COPY server/utils/ ./utils/
-COPY server/parsers/ ./parsers/
-COPY server/tests/ ./tests/
-COPY server/index.js ./
-COPY server/.eslintrc.json ./
+# Copy server source code
+# Copy all server files except node_modules and package files (already copied)
+WORKDIR /app
+COPY server/ ./server/
+# Remove node_modules and package files that were copied (we install separately)
+RUN cd ./server && \
+    rm -rf node_modules package-lock.json pnpm-lock.yaml 2>/dev/null || true
+WORKDIR /app/server
 
 # Expose port 3001
 EXPOSE 3001
