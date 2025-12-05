@@ -58,24 +58,26 @@ RUN mkdir -p /src/generated/prisma && \
 COPY server ./server
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
-    rm -rf node_modules 2>/dev/null || true && \
+    rm -rf node_modules 2>/dev/null || true
+
+# Ensure .eslintrc.json exists (create default if missing)
+RUN cd ./server && \
     if [ ! -f .eslintrc.json ]; then \
-      cat > .eslintrc.json << 'EOF'
-{
-  "env": {
-    "es2021": true,
-    "node": true
-  },
-  "extends": ["eslint:recommended"],
-  "parserOptions": {
-    "ecmaVersion": 2022,
-    "sourceType": "script"
-  },
-  "rules": {
-    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]
-  }
-}
-EOF
+      printf '%s\n' \
+        '{' \
+        '  "env": {' \
+        '    "es2021": true,' \
+        '    "node": true' \
+        '  },' \
+        '  "extends": ["eslint:recommended"],' \
+        '  "parserOptions": {' \
+        '    "ecmaVersion": 2022,' \
+        '    "sourceType": "script"' \
+        '  },' \
+        '  "rules": {' \
+        '    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }]' \
+        '  }' \
+        '}' > .eslintrc.json; \
     fi
 
 # Install server dependencies
