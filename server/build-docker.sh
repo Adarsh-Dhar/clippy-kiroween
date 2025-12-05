@@ -18,9 +18,11 @@ echo "📁 Build context: $PROJECT_ROOT"
 echo "📄 Dockerfile: server/Dockerfile"
 echo ""
 
-# Clean up any previous failed builds
-echo "🧹 Cleaning up previous builds..."
-docker builder prune -f > /dev/null 2>&1 || true
+# Check if Docker is running (skip check to avoid hanging - build will fail fast if Docker isn't running)
+echo "🔍 Starting build (Docker check will happen during build)..."
+
+# Skip cleanup to avoid hanging - proceed directly to build
+echo "🚀 Starting build process..."
 
 # Function to create fallback Dockerfile
 create_fallback_dockerfile() {
@@ -82,12 +84,21 @@ EOF
 
 # Try building with main Dockerfile first
 echo "📦 Attempting build with main Dockerfile..."
-if docker build \
+echo "⏳ This may take a few minutes..."
+echo "🔍 Starting Docker build..."
+echo ""
+# Try with BuildKit enabled (it should handle the COPY commands better now)
+set +e  # Temporarily disable exit on error to capture build status
+docker build \
     --progress=plain \
     --no-cache \
     -t "${IMAGE_NAME}:${TAG}" \
     -f server/Dockerfile \
-    . 2>&1 | tee server/build.log; then
+    . 2>&1 | tee server/build.log
+BUILD_EXIT_CODE=${PIPESTATUS[0]}
+set -e  # Re-enable exit on error
+
+if [ $BUILD_EXIT_CODE -eq 0 ]; then
     echo ""
     echo "✅ Build successful with main Dockerfile!"
     rm -f server/Dockerfile.fallback server/build.log
