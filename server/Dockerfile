@@ -8,8 +8,9 @@ RUN apt-get update && apt-get install -y \
     golang-go \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python linter (pylint)
-RUN pip3 install pylint
+# Upgrade pip and install Python linter (pylint)
+RUN python3 -m pip install --upgrade pip && \
+    python3 -m pip install --no-cache-dir pylint
 
 # Install golint
 RUN go install golang.org/x/lint/golint@latest
