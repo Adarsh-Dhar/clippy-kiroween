@@ -59,7 +59,6 @@ COPY server ./server
 # Remove node_modules if it was copied (shouldn't happen due to .dockerignore, but just in case)
 RUN cd ./server && \
     rm -rf node_modules 2>/dev/null || true && \
-    # Ensure .eslintrc.json exists (create default if missing)
     if [ ! -f .eslintrc.json ]; then \
       cat > .eslintrc.json << 'EOF'
 {
