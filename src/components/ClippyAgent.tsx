@@ -110,6 +110,8 @@ export const ClippyAgent = ({
           clearTimeout(loadTimeout);
           loaded = true;
           agentRef.current = agent;
+          // Store agent globally for access from other components
+          window.clippyAgent = agent;
           
           // Ensure Clippy is shown and positioned correctly
           console.log('👁️ Calling agent.show()...');

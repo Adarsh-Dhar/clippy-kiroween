@@ -628,9 +628,9 @@ export const FileSystemProvider = ({ children }: FileSystemProviderProps) => {
         if (nameParts.length > 1) {
           const ext = nameParts.pop();
           const baseName = nameParts.join('.');
-          newName = `${baseName} (${counter}).${ext}`;
+          newName = `${baseName}-${counter}.${ext}`;
         } else {
-          newName = `${node.name} (${counter})`;
+          newName = `${node.name}-${counter}`;
         }
         newPath = `${targetPath}/${newName}`;
         counter++;

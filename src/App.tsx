@@ -90,6 +90,31 @@ function EditorContent() {
     setErrorCount(count);
   };
 
+  // Trigger Clippy congratulate animation when execution succeeds
+  useEffect(() => {
+    if (executionState === 'success') {
+      // Try to access the Clippy agent instance
+      const agent = window.clippyAgent;
+      if (agent && typeof agent.play === 'function') {
+        try {
+          agent.play('Congratulate');
+          // Play Tada sound effect
+          try {
+            const audio = new Audio('/sounds/tada.mp3');
+            audio.volume = 0.5;
+            audio.play().catch(() => {
+              // Silently fail if sound file doesn't exist
+            });
+          } catch {
+            // Silently fail if audio creation fails
+          }
+        } catch (error) {
+          console.warn('Failed to play Clippy congratulate animation:', error);
+        }
+      }
+    }
+  }, [executionState]);
+
   const handleSuccessComplete = () => {
     // Success animation is automatically handled by useClippyBrain hook
     // when errorCount transitions from >0 to 0

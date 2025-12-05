@@ -22,6 +22,7 @@ interface ClippyStatic {
 declare global {
   interface Window {
     clippy: ClippyStatic;
+    clippyAgent?: ClippyAgent;
     jQuery?: unknown;
     $?: unknown;
   }

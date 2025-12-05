@@ -171,21 +171,43 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
   };
 
   /**
-   * Determine mouse quadrant based on window dimensions (Requirement 2.2, 2.3, 2.4, 2.5)
-   * @param x - Mouse X coordinate
-   * @param y - Mouse Y coordinate
-   * @returns Mouse quadrant or null if in center zone
+   * Determine mouse quadrant relative to Clippy's position (Requirement 2.2, 2.3, 2.4, 2.5)
+   * @param mouseX - Mouse X coordinate
+   * @param mouseY - Mouse Y coordinate
+   * @returns Mouse quadrant relative to Clippy's position
    */
-  const getMouseQuadrant = (x: number, y: number): MouseQuadrant => {
-    const windowWidth = window.innerWidth;
-    const windowHeight = window.innerHeight;
+  const getMouseQuadrant = (mouseX: number, mouseY: number): MouseQuadrant => {
+    // Get Clippy's position on screen
+    const clippyElement = document.querySelector('.clippy, #clippy') as HTMLElement;
+    if (!clippyElement) {
+      return null; // Clippy not found, can't determine quadrant
+    }
 
-    if (x < windowWidth * 0.4) return 'left';
-    if (x > windowWidth * 0.6) return 'right';
-    if (y < windowHeight * 0.2) return 'up';
-    if (y > windowHeight * 0.8) return 'down';
+    const rect = clippyElement.getBoundingClientRect();
+    const clippyX = rect.left + rect.width / 2; // Center X of Clippy
+    const clippyY = rect.top + rect.height / 2; // Center Y of Clippy
 
-    return null; // Center zone - no animation
+    // Calculate delta from Clippy to mouse
+    const deltaX = mouseX - clippyX;
+    const deltaY = mouseY - clippyY;
+
+    // Use a threshold to avoid jitter when mouse is very close to Clippy
+    const threshold = 30; // pixels
+
+    // Determine primary direction (horizontal vs vertical)
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      // Horizontal movement is dominant
+      if (Math.abs(deltaX) < threshold) {
+        return null; // Too close to Clippy center
+      }
+      return deltaX < 0 ? 'left' : 'right';
+    } else {
+      // Vertical movement is dominant
+      if (Math.abs(deltaY) < threshold) {
+        return null; // Too close to Clippy center
+      }
+      return deltaY < 0 ? 'up' : 'down';
+    }
   };
 
   /**
@@ -432,17 +454,17 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
         clearTimeout(mouseDebounceRef.current);
       }
 
-      // Set new debounce timer (200ms - Requirement 2.6)
+      // Set new debounce timer (150ms - Requirement 2.6, reduced for better responsiveness)
       mouseDebounceRef.current = setTimeout(() => {
-        // Only active if not speaking and not typing (Requirement 2.7)
-        if (isSpeaking || isTyping) {
+        // Only active if not speaking (allow during typing for better UX)
+        if (isSpeaking) {
           return;
         }
 
         const mouseX = mousePositionRef.current.x;
         const mouseY = mousePositionRef.current.y;
 
-        // Determine quadrant based on window dimensions (Requirement 2.2-2.5)
+        // Determine quadrant relative to Clippy's position (Requirement 2.2-2.5)
         const quadrant = getMouseQuadrant(mouseX, mouseY);
 
         // Only trigger if quadrant changed and is not null
@@ -457,8 +479,11 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
           };
 
           playAnimationWithTier(animationMap[quadrant], TIER.PASSIVE);
+        } else if (quadrant === null && lastMouseQuadrantRef.current !== null) {
+          // Mouse moved back to center, reset tracking
+          lastMouseQuadrantRef.current = null;
         }
-      }, 200);
+      }, 150); // Reduced debounce for more responsive tracking
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -469,7 +494,7 @@ export function useClippyBrain(options: UseClippyBrainOptions): void {
         clearTimeout(mouseDebounceRef.current);
       }
     };
-  }, [enabled, agent, isSpeaking, isTyping]);
+  }, [enabled, agent, isSpeaking]);
 
   // Tier 4: Idle Behavior Loop (Requirement 1)
   useEffect(() => {

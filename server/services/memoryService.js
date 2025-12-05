@@ -8,21 +8,43 @@ const { getPrisma } = require('../utils/prismaClient');
 
 /**
  * Get or create user by userId
+ * Handles race conditions where multiple requests try to create the same user
  */
 async function getOrCreateUser(userId) {
   const prisma = await getPrisma();
   
+  // First, try to find existing user
   let user = await prisma.user.findUnique({
     where: { userId },
   });
 
-  if (!user) {
+  if (user) {
+    return user;
+  }
+
+  // User doesn't exist, try to create with error handling for race conditions
+  try {
     user = await prisma.user.create({
       data: { userId },
     });
+    return user;
+  } catch (createError) {
+    // Handle race condition: another request created the user between findUnique and create
+    if (createError.code === 'P2002') {
+      // Unique constraint violation - user was created by another request
+      // Fetch the user that was just created
+      user = await prisma.user.findUnique({
+        where: { userId },
+      });
+      if (user) {
+        return user;
+      }
+      // If still not found, something else went wrong
+      throw new Error(`Failed to create or find user with userId: ${userId}`);
+    }
+    // Re-throw if it's not a unique constraint error
+    throw createError;
   }
-
-  return user;
 }
 
 /**

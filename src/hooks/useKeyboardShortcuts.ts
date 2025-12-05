@@ -17,7 +17,15 @@ export const useKeyboardShortcuts = () => {
     setReplaceDialogOpen,
   } = useEditor();
   
-  const { activeFile, updateFileContent, getFileContent } = useFileSystem();
+  const { 
+    activeFile, 
+    updateFileContent, 
+    getFileContent, 
+    createFile, 
+    openFile, 
+    closeFile,
+    findNode 
+  } = useFileSystem();
   const { zoomIn, zoomOut, resetZoom } = useView();
   const { execute, executionState } = useExecution();
   const { punishmentType } = useGame();
@@ -63,6 +71,32 @@ export const useKeyboardShortcuts = () => {
 
       // Prevent default browser behavior for our shortcuts
       switch (e.key.toLowerCase()) {
+        case 'n':
+          e.preventDefault();
+          // Create new file
+          const defaultName = 'newfile.txt';
+          let newPath = `/${defaultName}`;
+          let counter = 1;
+          
+          while (counter < 100) {
+            const checkNode = findNode(newPath);
+            if (!checkNode) {
+              break;
+            }
+            newPath = `/newfile${counter}.txt`;
+            counter++;
+          }
+          
+          createFile(newPath);
+          openFile(newPath);
+          break;
+        case 'w':
+          e.preventDefault();
+          // Close active file (only if one is open)
+          if (activeFile) {
+            closeFile(activeFile);
+          }
+          break;
         case 's':
           e.preventDefault();
           // Save is handled automatically, but we can add explicit save here
@@ -124,9 +158,10 @@ export const useKeyboardShortcuts = () => {
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    // Use capture phase to intercept shortcuts before browser handles them
+    document.addEventListener('keydown', handleKeyDown, true);
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, true);
     };
   }, [
     cut,
@@ -140,6 +175,10 @@ export const useKeyboardShortcuts = () => {
     activeFile,
     getFileContent,
     updateFileContent,
+    createFile,
+    openFile,
+    closeFile,
+    findNode,
     zoomIn,
     zoomOut,
     resetZoom,
