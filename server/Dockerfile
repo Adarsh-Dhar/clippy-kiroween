@@ -26,27 +26,46 @@ RUN npm install -g eslint
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy root package.json (for Prisma dependencies)
+COPY package.json ./
+COPY package-lock.json* pnpm-lock.yaml* ./
 
-# Install Node.js dependencies
+# Copy Prisma schema and config
+COPY prisma/ ./prisma/
+COPY prisma.config.ts ./
+
+# Install root dependencies (includes Prisma)
 RUN npm install
 
-# Copy server source code (exclude node_modules)
-COPY routes/ ./routes/
-COPY services/ ./services/
-COPY utils/ ./utils/
-COPY parsers/ ./parsers/
-COPY tests/ ./tests/
-COPY index.js ./
-COPY .eslintrc.json ./
+# Generate Prisma client
+# The schema outputs to ../src/generated/prisma from prisma/, which becomes /app/src/generated/prisma
+RUN npx prisma generate
 
-# Create the expected Prisma client path structure
-# The server expects it at ../../src/generated/prisma/client from server/utils/
-# Since we're in /app (server dir), that resolves to /src/generated/prisma/client
-# Note: Prisma client should be pre-generated and copied during build if database features are needed
-# Otherwise, server will run in memory-only mode (graceful fallback)
-RUN mkdir -p /src/generated/prisma
+# Copy generated Prisma client to where the server expects it
+# Server looks for ../../src/generated/prisma/client from /app/server/utils/
+# That resolves to /src/generated/prisma/client
+RUN mkdir -p /src/generated/prisma && \
+    if [ -d "src/generated/prisma" ]; then \
+      cp -r src/generated/prisma/* /src/generated/prisma/; \
+    elif [ -d "node_modules/.prisma/client" ]; then \
+      cp -r node_modules/.prisma/client/* /src/generated/prisma/; \
+    else \
+      echo "Warning: Prisma client not found in expected locations"; \
+    fi
+
+# Copy server package files and install server dependencies
+COPY server/package*.json ./server/
+WORKDIR /app/server
+RUN npm install
+
+# Copy server source code (WORKDIR is /app/server, COPY is relative to build context)
+COPY server/routes/ ./routes/
+COPY server/services/ ./services/
+COPY server/utils/ ./utils/
+COPY server/parsers/ ./parsers/
+COPY server/tests/ ./tests/
+COPY server/index.js ./
+COPY server/.eslintrc.json ./
 
 # Expose port 3001
 EXPOSE 3001

@@ -1,18 +1,22 @@
 #!/bin/bash
 
 # Build script for server Docker image
-# This script will attempt to build the Docker image and fix common issues
+# This script builds from the project root to access Prisma schema
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$PROJECT_ROOT"
 
 IMAGE_NAME="clippy-server"
 TAG="${1:-latest}"
 
 echo "🔨 Building Docker image: ${IMAGE_NAME}:${TAG}"
 echo "=========================================="
+echo "📁 Build context: $PROJECT_ROOT"
+echo "📄 Dockerfile: server/Dockerfile"
+echo ""
 
 # Clean up any previous failed builds
 echo "🧹 Cleaning up previous builds..."
@@ -21,7 +25,7 @@ docker builder prune -f > /dev/null 2>&1 || true
 # Function to create fallback Dockerfile
 create_fallback_dockerfile() {
     echo "🔧 Creating fallback Dockerfile (using pip for pylint)..."
-    cat > Dockerfile.fallback << 'EOF'
+    cat > server/Dockerfile.fallback << 'EOF'
 # Use Node.js 18 as base image
 FROM node:18
 
@@ -82,11 +86,11 @@ if docker build \
     --progress=plain \
     --no-cache \
     -t "${IMAGE_NAME}:${TAG}" \
-    -f Dockerfile \
-    . 2>&1 | tee build.log; then
+    -f server/Dockerfile \
+    . 2>&1 | tee server/build.log; then
     echo ""
     echo "✅ Build successful with main Dockerfile!"
-    rm -f Dockerfile.fallback build.log
+    rm -f server/Dockerfile.fallback server/build.log
     echo "📝 Image: ${IMAGE_NAME}:${TAG}"
     echo ""
     echo "To run the container:"
@@ -97,7 +101,7 @@ else
     echo "⚠️  Build failed with main Dockerfile"
     
     # Check if it's a pylint issue
-    if grep -qi "pylint\|package.*not found\|unable to locate" build.log; then
+    if grep -qi "pylint\|package.*not found\|unable to locate" server/build.log; then
         echo "🔍 Detected pylint installation issue, trying fallback method..."
         create_fallback_dockerfile
         
@@ -106,12 +110,12 @@ else
             --progress=plain \
             --no-cache \
             -t "${IMAGE_NAME}:${TAG}" \
-            -f Dockerfile.fallback \
-            . 2>&1 | tee build-fallback.log; then
+            -f server/Dockerfile.fallback \
+            . 2>&1 | tee server/build-fallback.log; then
             echo ""
             echo "✅ Build successful with fallback Dockerfile!"
             echo "💡 Consider updating main Dockerfile to use pip method"
-            rm -f build.log build-fallback.log
+            rm -f server/build.log server/build-fallback.log
             echo "📝 Image: ${IMAGE_NAME}:${TAG}"
             echo ""
             echo "To run the container:"
@@ -120,12 +124,12 @@ else
         else
             echo ""
             echo "❌ Build failed with fallback Dockerfile too!"
-            echo "📋 Check build-fallback.log for details"
+            echo "📋 Check server/build-fallback.log for details"
             exit 1
         fi
     else
         echo "❌ Build failed for unknown reason"
-        echo "📋 Check build.log for details"
+        echo "📋 Check server/build.log for details"
         exit 1
     fi
 fi
